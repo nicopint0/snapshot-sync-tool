@@ -77,6 +77,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "appointments_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients_limited"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "appointments_treatment_id_fkey"
             columns: ["treatment_id"]
             isOneToOne: false
@@ -204,6 +211,13 @@ export type Database = {
             referencedRelation: "patients"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "budgets_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients_limited"
+            referencedColumns: ["id"]
+          },
         ]
       }
       clinics: {
@@ -279,6 +293,13 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "odontograms_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients_limited"
             referencedColumns: ["id"]
           },
         ]
@@ -419,6 +440,13 @@ export type Database = {
             referencedRelation: "patients"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "payments_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients_limited"
+            referencedColumns: ["id"]
+          },
         ]
       }
       profiles: {
@@ -552,7 +580,71 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      patients_limited: {
+        Row: {
+          address: string | null
+          avatar_url: string | null
+          birth_date: string | null
+          city: string | null
+          clinic_id: string | null
+          created_at: string | null
+          email: string | null
+          first_name: string | null
+          gender: string | null
+          id: string | null
+          last_name: string | null
+          phone: string | null
+          postal_code: string | null
+          state: string | null
+          updated_at: string | null
+          whatsapp: string | null
+        }
+        Insert: {
+          address?: string | null
+          avatar_url?: string | null
+          birth_date?: string | null
+          city?: string | null
+          clinic_id?: string | null
+          created_at?: string | null
+          email?: string | null
+          first_name?: string | null
+          gender?: string | null
+          id?: string | null
+          last_name?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          state?: string | null
+          updated_at?: string | null
+          whatsapp?: string | null
+        }
+        Update: {
+          address?: string | null
+          avatar_url?: string | null
+          birth_date?: string | null
+          city?: string | null
+          clinic_id?: string | null
+          created_at?: string | null
+          email?: string | null
+          first_name?: string | null
+          gender?: string | null
+          id?: string | null
+          last_name?: string | null
+          phone?: string | null
+          postal_code?: string | null
+          state?: string | null
+          updated_at?: string | null
+          whatsapp?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patients_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       get_user_clinic_id: { Args: { _user_id: string }; Returns: string }
