@@ -1,0 +1,266 @@
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { motion } from "framer-motion";
+import {
+  User,
+  Building2,
+  Users,
+  Clock,
+  Bell,
+  CreditCard,
+  Save,
+  Loader2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import AppLayout from "@/components/layout/AppLayout";
+import { useAuth } from "@/hooks/useAuth";
+
+type SettingsSection = "profile" | "clinic" | "users" | "schedule" | "notifications" | "subscription";
+
+const Settings = () => {
+  const { t } = useTranslation();
+  const { profile } = useAuth();
+  const [activeSection, setActiveSection] = useState<SettingsSection>("profile");
+  const [isLoading, setIsLoading] = useState(false);
+
+  const sections = [
+    { id: "profile" as const, label: "Perfil de Usuario", icon: User },
+    { id: "clinic" as const, label: "Datos de la Clínica", icon: Building2 },
+    { id: "users" as const, label: "Usuarios y Permisos", icon: Users },
+    { id: "schedule" as const, label: "Horarios", icon: Clock },
+    { id: "notifications" as const, label: "Notificaciones", icon: Bell },
+    { id: "subscription" as const, label: "Suscripción", icon: CreditCard },
+  ];
+
+  const renderContent = () => {
+    switch (activeSection) {
+      case "profile":
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Perfil de Usuario</CardTitle>
+              <CardDescription>Actualiza tu información personal</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">Nombre</Label>
+                  <Input id="firstName" defaultValue={profile?.first_name || ""} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Apellido</Label>
+                  <Input id="lastName" defaultValue={profile?.last_name || ""} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" type="email" defaultValue={profile?.email || ""} disabled />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Teléfono</Label>
+                  <Input id="phone" defaultValue={profile?.phone || ""} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="specialty">Especialidad</Label>
+                  <Input id="specialty" defaultValue={profile?.specialty || ""} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="license">Número de Licencia</Label>
+                  <Input id="license" defaultValue={profile?.license_number || ""} />
+                </div>
+              </div>
+              <Button disabled={isLoading}>
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Guardar Cambios
+              </Button>
+            </CardContent>
+          </Card>
+        );
+
+      case "clinic":
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Datos de la Clínica</CardTitle>
+              <CardDescription>Información de tu clínica dental</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="clinicName">Nombre de la Clínica</Label>
+                  <Input id="clinicName" placeholder="Mi Clínica Dental" />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="clinicAddress">Dirección</Label>
+                  <Input id="clinicAddress" placeholder="Av. Principal 123" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="clinicPhone">Teléfono</Label>
+                  <Input id="clinicPhone" placeholder="+52 55 1234 5678" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="clinicEmail">Email</Label>
+                  <Input id="clinicEmail" type="email" placeholder="contacto@clinica.com" />
+                </div>
+              </div>
+              <Button disabled={isLoading}>
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Guardar Cambios
+              </Button>
+            </CardContent>
+          </Card>
+        );
+
+      case "users":
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Usuarios y Permisos</CardTitle>
+              <CardDescription>Gestiona los miembros de tu equipo</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Próximamente podrás invitar y gestionar usuarios aquí.</p>
+            </CardContent>
+          </Card>
+        );
+
+      case "schedule":
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Horarios de Atención</CardTitle>
+              <CardDescription>Configura los horarios de la clínica</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground">Próximamente podrás configurar los horarios aquí.</p>
+            </CardContent>
+          </Card>
+        );
+
+      case "notifications":
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Notificaciones</CardTitle>
+              <CardDescription>Configura cómo recibes las notificaciones</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Recordatorios de citas</p>
+                  <p className="text-sm text-muted-foreground">Recibe notificaciones de próximas citas</p>
+                </div>
+                <Switch defaultChecked />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Nuevos pacientes</p>
+                  <p className="text-sm text-muted-foreground">Notificación cuando se registra un paciente</p>
+                </div>
+                <Switch defaultChecked />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Pagos recibidos</p>
+                  <p className="text-sm text-muted-foreground">Confirmación de pagos procesados</p>
+                </div>
+                <Switch defaultChecked />
+              </div>
+              <Separator />
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Notificaciones por email</p>
+                  <p className="text-sm text-muted-foreground">Recibe resúmenes diarios por email</p>
+                </div>
+                <Switch />
+              </div>
+            </CardContent>
+          </Card>
+        );
+
+      case "subscription":
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Suscripción</CardTitle>
+              <CardDescription>Tu plan actual y facturación</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-bold text-lg">Plan Profesional</p>
+                    <p className="text-sm text-muted-foreground">Facturación mensual</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-2xl">$49</p>
+                    <p className="text-sm text-muted-foreground">/mes</p>
+                  </div>
+                </div>
+              </div>
+              <Button variant="outline" className="w-full">
+                Cambiar Plan
+              </Button>
+            </CardContent>
+          </Card>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <AppLayout>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="space-y-6"
+      >
+        {/* Header */}
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">{t("settings.title")}</h1>
+          <p className="text-muted-foreground">Administra la configuración de tu cuenta y clínica</p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Sidebar */}
+          <Card className="lg:col-span-1 h-fit">
+            <CardContent className="p-2">
+              <nav className="space-y-1">
+                {sections.map((section) => (
+                  <button
+                    key={section.id}
+                    onClick={() => setActiveSection(section.id)}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      activeSection === section.id
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    }`}
+                  >
+                    <section.icon className="h-4 w-4" />
+                    {section.label}
+                  </button>
+                ))}
+              </nav>
+            </CardContent>
+          </Card>
+
+          {/* Content */}
+          <div className="lg:col-span-3">
+            {renderContent()}
+          </div>
+        </div>
+      </motion.div>
+    </AppLayout>
+  );
+};
+
+export default Settings;
