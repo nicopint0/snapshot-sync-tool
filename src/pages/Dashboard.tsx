@@ -12,6 +12,7 @@ import {
   ArrowRight,
   Phone,
 } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +22,12 @@ import { Link } from "react-router-dom";
 
 const Dashboard = () => {
   const { t } = useTranslation();
+  const { profile } = useAuth();
+  
+  // Get user display name from profile
+  const displayName = profile 
+    ? `${profile.first_name} ${profile.last_name}`.trim() || "Usuario"
+    : "Usuario";
 
   // Mock data
   const todayStats = {
@@ -144,7 +151,7 @@ const Dashboard = () => {
         <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-foreground">
-              {t("dashboard.welcome")}, Dr. Juan 👋
+              {t("dashboard.welcome")}, {displayName} 👋
             </h1>
             <p className="text-muted-foreground mt-1">
               {new Date().toLocaleDateString("es-ES", {

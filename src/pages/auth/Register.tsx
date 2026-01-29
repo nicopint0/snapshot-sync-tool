@@ -19,12 +19,15 @@ import AuthLayout from "@/components/auth/AuthLayout";
 import { useAuth } from "@/hooks/useAuth";
 
 const countries = [
-  { code: "MX", name: "México", flag: "🇲🇽" },
-  { code: "CO", name: "Colombia", flag: "🇨🇴" },
-  { code: "AR", name: "Argentina", flag: "🇦🇷" },
-  { code: "BR", name: "Brasil", flag: "🇧🇷" },
-  { code: "US", name: "Estados Unidos", flag: "🇺🇸" },
-  { code: "ES", name: "España", flag: "🇪🇸" },
+  { code: "AR", name: "Argentina", flag: "🇦🇷", phoneCode: "+54" },
+  { code: "BR", name: "Brasil", flag: "🇧🇷", phoneCode: "+55" },
+  { code: "CL", name: "Chile", flag: "🇨🇱", phoneCode: "+56" },
+  { code: "CO", name: "Colombia", flag: "🇨🇴", phoneCode: "+57" },
+  { code: "ES", name: "España", flag: "🇪🇸", phoneCode: "+34" },
+  { code: "US", name: "Estados Unidos", flag: "🇺🇸", phoneCode: "+1" },
+  { code: "MX", name: "México", flag: "🇲🇽", phoneCode: "+52" },
+  { code: "PE", name: "Perú", flag: "🇵🇪", phoneCode: "+51" },
+  { code: "UY", name: "Uruguay", flag: "🇺🇾", phoneCode: "+598" },
 ];
 
 const Register = () => {

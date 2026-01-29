@@ -12,7 +12,16 @@ import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
 import Dashboard from "./pages/Dashboard";
 import Patients from "./pages/Patients";
+import NewPatient from "./pages/patients/NewPatient";
+import PatientDetail from "./pages/patients/PatientDetail";
 import Appointments from "./pages/Appointments";
+import Agenda from "./pages/Agenda";
+import Treatments from "./pages/Treatments";
+import Budgets from "./pages/Budgets";
+import Payments from "./pages/Payments";
+import WhatsApp from "./pages/WhatsApp";
+import Reports from "./pages/Reports";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,31 +48,38 @@ const App = () => (
             <Route path="/patients" element={
               <ProtectedRoute><Patients /></ProtectedRoute>
             } />
+            <Route path="/patients/new" element={
+              <ProtectedRoute><NewPatient /></ProtectedRoute>
+            } />
+            <Route path="/patients/:id" element={
+              <ProtectedRoute><PatientDetail /></ProtectedRoute>
+            } />
             <Route path="/appointments" element={
               <ProtectedRoute><Appointments /></ProtectedRoute>
             } />
-            
-            {/* Placeholder routes */}
+            <Route path="/agenda" element={
+              <ProtectedRoute><Agenda /></ProtectedRoute>
+            } />
             <Route path="/treatments" element={
-              <ProtectedRoute><Dashboard /></ProtectedRoute>
+              <ProtectedRoute><Treatments /></ProtectedRoute>
             } />
             <Route path="/budgets" element={
-              <ProtectedRoute><Dashboard /></ProtectedRoute>
+              <ProtectedRoute><Budgets /></ProtectedRoute>
             } />
             <Route path="/payments" element={
-              <ProtectedRoute><Dashboard /></ProtectedRoute>
+              <ProtectedRoute><Payments /></ProtectedRoute>
             } />
             <Route path="/whatsapp" element={
-              <ProtectedRoute><Dashboard /></ProtectedRoute>
+              <ProtectedRoute><WhatsApp /></ProtectedRoute>
             } />
             <Route path="/reports" element={
-              <ProtectedRoute><Dashboard /></ProtectedRoute>
+              <ProtectedRoute><Reports /></ProtectedRoute>
             } />
             <Route path="/settings" element={
-              <ProtectedRoute><Dashboard /></ProtectedRoute>
+              <ProtectedRoute><Settings /></ProtectedRoute>
             } />
             <Route path="/settings/*" element={
-              <ProtectedRoute><Dashboard /></ProtectedRoute>
+              <ProtectedRoute><Settings /></ProtectedRoute>
             } />
             
             {/* Catch all */}
