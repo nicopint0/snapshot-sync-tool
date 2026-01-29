@@ -57,33 +57,69 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        // Status colors for appointments
+        status: {
+          scheduled: "hsl(var(--status-scheduled))",
+          confirmed: "hsl(var(--status-confirmed))",
+          "in-progress": "hsl(var(--status-in-progress))",
+          completed: "hsl(var(--status-completed))",
+          cancelled: "hsl(var(--status-cancelled))",
+          "no-show": "hsl(var(--status-no-show))",
+        },
+        // Tooth condition colors for odontogram
+        tooth: {
+          healthy: "hsl(var(--tooth-healthy))",
+          caries: "hsl(var(--tooth-caries))",
+          filling: "hsl(var(--tooth-filling))",
+          crown: "hsl(var(--tooth-crown))",
+          "root-canal": "hsl(var(--tooth-root-canal))",
+          missing: "hsl(var(--tooth-missing))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      fontFamily: {
+        sans: [
+          "Inter",
+          "system-ui",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Segoe UI",
+          "Roboto",
+          "Helvetica Neue",
+          "Arial",
+          "sans-serif",
+        ],
+      },
       keyframes: {
         "accordion-down": {
-          from: {
-            height: "0",
-          },
-          to: {
-            height: "var(--radix-accordion-content-height)",
-          },
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
         },
         "accordion-up": {
-          from: {
-            height: "var(--radix-accordion-content-height)",
-          },
-          to: {
-            height: "0",
-          },
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+        shimmer: {
+          "100%": { transform: "translateX(100%)" },
+        },
+        pulse: {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.5" },
         },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        shimmer: "shimmer 2s infinite",
+        pulse: "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+      },
+      boxShadow: {
+        card: "0 1px 3px 0 hsl(168, 80%, 32%, 0.05), 0 1px 2px -1px hsl(168, 80%, 32%, 0.05)",
+        "card-hover": "0 10px 15px -3px hsl(168, 80%, 32%, 0.1), 0 4px 6px -4px hsl(168, 80%, 32%, 0.1)",
       },
     },
   },
