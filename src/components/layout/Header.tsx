@@ -22,6 +22,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import LanguageSelector from "@/components/common/LanguageSelector";
+import { useAuth } from "@/hooks/useAuth";
 
 interface HeaderProps {
   onMenuClick: () => void;
@@ -30,15 +31,18 @@ interface HeaderProps {
 const Header = ({ onMenuClick }: HeaderProps) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { profile, user: authUser, signOut } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Mock user data
-  const user = {
-    name: "Dr. Juan Pérez",
-    email: "dr.perez@dental.com",
-    avatar: "",
-    initials: "JP",
-  };
+  // Get user display info from profile or auth user
+  const displayName = profile 
+    ? `${profile.first_name} ${profile.last_name}`.trim() || "Usuario"
+    : "Usuario";
+  const email = profile?.email || authUser?.email || "";
+  const initials = profile 
+    ? `${profile.first_name?.[0] || ""}${profile.last_name?.[0] || ""}`.toUpperCase() || "U"
+    : "U";
+  const avatarUrl = profile?.avatar_url || "";
 
   // Mock notifications
   const notifications = [
@@ -46,6 +50,11 @@ const Header = ({ onMenuClick }: HeaderProps) => {
     { id: 2, text: "Recordatorio: María López a las 3:00 PM", time: "Hace 1 hora" },
     { id: 3, text: "Pago recibido de Carlos García", time: "Hace 2 horas" },
   ];
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate("/auth/login");
+  };
 
   return (
     <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b border-border">
@@ -116,21 +125,21 @@ const Header = ({ onMenuClick }: HeaderProps) => {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="gap-2 pl-2 pr-3">
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={user.avatar} />
+                  <AvatarImage src={avatarUrl} />
                   <AvatarFallback className="bg-primary text-primary-foreground text-sm">
-                    {user.initials}
+                    {initials}
                   </AvatarFallback>
                 </Avatar>
                 <span className="hidden md:inline font-medium text-sm">
-                  {user.name}
+                  {displayName}
                 </span>
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
               <div className="p-3 border-b border-border">
-                <p className="font-semibold">{user.name}</p>
-                <p className="text-sm text-muted-foreground">{user.email}</p>
+                <p className="font-semibold">{displayName}</p>
+                <p className="text-sm text-muted-foreground">{email}</p>
               </div>
               <DropdownMenuItem
                 onClick={() => navigate("/settings/profile")}
@@ -148,7 +157,7 @@ const Header = ({ onMenuClick }: HeaderProps) => {
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
-                onClick={() => navigate("/auth/login")}
+                onClick={handleLogout}
                 className="cursor-pointer text-destructive"
               >
                 <LogOut className="mr-2 h-4 w-4" />

@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import AuthLayout from "@/components/auth/AuthLayout";
+import { useAuth } from "@/hooks/useAuth";
 
 const countries = [
   { code: "MX", name: "México", flag: "🇲🇽" },
@@ -29,6 +30,7 @@ const countries = [
 const Register = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { signUp, session } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -42,6 +44,12 @@ const Register = () => {
     confirmPassword: "",
     acceptTerms: false,
   });
+
+  // Redirect if already logged in
+  if (session) {
+    navigate("/dashboard", { replace: true });
+    return null;
+  }
 
   const passwordChecks = {
     length: formData.password.length >= 8,
@@ -69,12 +77,23 @@ const Register = () => {
 
     setIsLoading(true);
 
-    // Simulate registration - will be replaced with Supabase auth
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    const { error } = await signUp({
+      email: formData.email,
+      password: formData.password,
+      clinicName: formData.clinicName,
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      phone: formData.phone,
+      country: formData.country,
+    });
     
-    toast.success(t("auth.registerSuccess"));
-    navigate("/dashboard");
-    setIsLoading(false);
+    if (error) {
+      toast.error(error.message || t("auth.registerError"));
+      setIsLoading(false);
+    } else {
+      toast.success(t("auth.registerSuccess"));
+      navigate("/dashboard");
+    }
   };
 
   const PasswordCheck = ({ valid, label }: { valid: boolean; label: string }) => (
