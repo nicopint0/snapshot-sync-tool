@@ -9,10 +9,12 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import AuthLayout from "@/components/auth/AuthLayout";
+import { useAuth } from "@/hooks/useAuth";
 
 const Login = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { signIn, session } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -21,16 +23,25 @@ const Login = () => {
     rememberMe: false,
   });
 
+  // Redirect if already logged in
+  if (session) {
+    navigate("/dashboard", { replace: true });
+    return null;
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
-    // Simulate login - will be replaced with Supabase auth
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    const { error } = await signIn(formData.email, formData.password);
     
-    toast.success(t("auth.loginSuccess"));
-    navigate("/dashboard");
-    setIsLoading(false);
+    if (error) {
+      toast.error(error.message || t("auth.loginError"));
+      setIsLoading(false);
+    } else {
+      toast.success(t("auth.loginSuccess"));
+      navigate("/dashboard");
+    }
   };
 
   return (
