@@ -21,6 +21,8 @@ import {
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import AppLayout from "@/components/layout/AppLayout";
+import NewAppointmentModal from "@/components/appointments/NewAppointmentModal";
+import { cn } from "@/lib/utils";
 
 type ViewType = "day" | "week" | "month";
 
@@ -29,6 +31,7 @@ const Agenda = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [view, setView] = useState<ViewType>("week");
   const [selectedDentist, setSelectedDentist] = useState<string>("all");
+  const [showNewAppointment, setShowNewAppointment] = useState(false);
 
   // Mock data for appointments
   const appointments = [
@@ -131,6 +134,59 @@ const Agenda = () => {
     });
   };
 
+  // Generate month days for calendar view
+  const generateMonthDays = () => {
+    const year = selectedDate.getFullYear();
+    const month = selectedDate.getMonth();
+    
+    const firstDayOfMonth = new Date(year, month, 1);
+    const lastDayOfMonth = new Date(year, month + 1, 0);
+    
+    const startDay = firstDayOfMonth.getDay();
+    const daysInMonth = lastDayOfMonth.getDate();
+    
+    const days: { date: Date; dayNumber: number; isCurrentMonth: boolean; isToday: boolean }[] = [];
+    
+    // Previous month days
+    const prevMonthLastDay = new Date(year, month, 0).getDate();
+    for (let i = startDay - 1; i >= 0; i--) {
+      days.push({
+        date: new Date(year, month - 1, prevMonthLastDay - i),
+        dayNumber: prevMonthLastDay - i,
+        isCurrentMonth: false,
+        isToday: false,
+      });
+    }
+    
+    // Current month days
+    const today = new Date();
+    for (let i = 1; i <= daysInMonth; i++) {
+      const date = new Date(year, month, i);
+      days.push({
+        date,
+        dayNumber: i,
+        isCurrentMonth: true,
+        isToday: 
+          date.getDate() === today.getDate() &&
+          date.getMonth() === today.getMonth() &&
+          date.getFullYear() === today.getFullYear(),
+      });
+    }
+    
+    // Next month days
+    const remainingDays = 42 - days.length;
+    for (let i = 1; i <= remainingDays; i++) {
+      days.push({
+        date: new Date(year, month + 1, i),
+        dayNumber: i,
+        isCurrentMonth: false,
+        isToday: false,
+      });
+    }
+    
+    return days;
+  };
+
   return (
     <AppLayout>
       <motion.div
@@ -158,7 +214,7 @@ const Agenda = () => {
                 ))}
               </SelectContent>
             </Select>
-            <Button>
+            <Button onClick={() => setShowNewAppointment(true)}>
               <Plus className="h-4 w-4 mr-2" />
               Nueva Cita
             </Button>
@@ -232,8 +288,35 @@ const Agenda = () => {
             </CardHeader>
             <CardContent>
               {view === "month" ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  Vista mensual - Próximamente
+                <div className="space-y-4">
+                  <div className="grid grid-cols-7 gap-1">
+                    {["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"].map((day) => (
+                      <div key={day} className="text-center font-medium text-muted-foreground py-2 text-sm">
+                        {day}
+                      </div>
+                    ))}
+                    {generateMonthDays().map((day, i) => (
+                      <div
+                        key={i}
+                        onClick={() => {
+                          setSelectedDate(day.date);
+                          setView("day");
+                        }}
+                        className={cn(
+                          "min-h-20 p-1 border rounded text-sm cursor-pointer transition-colors hover:bg-muted/50",
+                          !day.isCurrentMonth && "bg-muted/30 text-muted-foreground",
+                          day.isToday && "ring-2 ring-primary"
+                        )}
+                      >
+                        <span className={cn(
+                          "inline-flex items-center justify-center w-6 h-6 rounded-full text-xs",
+                          day.isToday && "bg-primary text-primary-foreground"
+                        )}>
+                          {day.dayNumber}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : view === "week" ? (
                 <div className="overflow-x-auto">
@@ -359,6 +442,11 @@ const Agenda = () => {
             </div>
           </CardContent>
         </Card>
+        
+        <NewAppointmentModal
+          open={showNewAppointment}
+          onOpenChange={setShowNewAppointment}
+        />
       </motion.div>
     </AppLayout>
   );

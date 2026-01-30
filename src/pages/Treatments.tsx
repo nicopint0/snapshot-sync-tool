@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import AppLayout from "@/components/layout/AppLayout";
+import NewTreatmentDialog from "@/components/treatments/NewTreatmentDialog";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Treatment {
@@ -40,6 +41,7 @@ const Treatments = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [showNewTreatment, setShowNewTreatment] = useState(false);
 
   useEffect(() => {
     fetchTreatments();
@@ -83,12 +85,16 @@ const Treatments = () => {
             <h1 className="text-2xl font-bold text-foreground">{t("treatments.title")}</h1>
             <p className="text-muted-foreground">Catálogo de tratamientos de la clínica</p>
           </div>
-          <Button>
+          <Button onClick={() => setShowNewTreatment(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Nuevo Tratamiento
           </Button>
         </div>
 
+        <NewTreatmentDialog
+          open={showNewTreatment}
+          onOpenChange={setShowNewTreatment}
+        />
         {/* Filters */}
         <Card>
           <CardContent className="pt-6">
@@ -135,7 +141,7 @@ const Treatments = () => {
             ) : filteredTreatments.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-muted-foreground">No se encontraron tratamientos</p>
-                <Button className="mt-4">
+                <Button className="mt-4" onClick={() => setShowNewTreatment(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Crear primer tratamiento
                 </Button>

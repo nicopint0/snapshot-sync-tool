@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
 import {
@@ -19,16 +20,17 @@ import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import AppLayout from "@/components/layout/AppLayout";
 import { Link } from "react-router-dom";
+import NewAppointmentModal from "@/components/appointments/NewAppointmentModal";
 
 const Dashboard = () => {
   const { t } = useTranslation();
   const { profile } = useAuth();
+  const [showNewAppointment, setShowNewAppointment] = useState(false);
   
   // Get user display name from profile
   const displayName = profile 
     ? `${profile.first_name} ${profile.last_name}`.trim() || "Usuario"
     : "Usuario";
-
   // Mock data
   const todayStats = {
     totalAppointments: 8,
@@ -169,14 +171,17 @@ const Dashboard = () => {
                 {t("dashboard.newPatient")}
               </Link>
             </Button>
-            <Button asChild>
-              <Link to="/appointments/new">
-                <Plus className="h-4 w-4 mr-2" />
-                {t("dashboard.newAppointment")}
-              </Link>
+            <Button onClick={() => setShowNewAppointment(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              {t("dashboard.newAppointment")}
             </Button>
           </div>
         </motion.div>
+
+        <NewAppointmentModal
+          open={showNewAppointment}
+          onOpenChange={setShowNewAppointment}
+        />
 
         {/* Monthly stats */}
         <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
