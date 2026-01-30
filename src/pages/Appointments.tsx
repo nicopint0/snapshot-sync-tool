@@ -10,9 +10,10 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AppLayout from "@/components/layout/AppLayout";
+import { cn } from "@/lib/utils";
 
 const Appointments = () => {
   const { t } = useTranslation();
@@ -125,6 +126,69 @@ const Appointments = () => {
 
   const goToToday = () => {
     setCurrentDate(new Date());
+  };
+
+  const getWeekDays = () => {
+    const start = new Date(currentDate);
+    start.setDate(start.getDate() - start.getDay());
+    
+    return Array.from({ length: 7 }, (_, i) => {
+      const day = new Date(start);
+      day.setDate(start.getDate() + i);
+      return day;
+    });
+  };
+
+  const generateMonthDays = () => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    
+    const firstDayOfMonth = new Date(year, month, 1);
+    const lastDayOfMonth = new Date(year, month + 1, 0);
+    
+    const startDay = firstDayOfMonth.getDay();
+    const daysInMonth = lastDayOfMonth.getDate();
+    
+    const days: { date: Date; dayNumber: number; isCurrentMonth: boolean; isToday: boolean }[] = [];
+    
+    // Previous month days
+    const prevMonthLastDay = new Date(year, month, 0).getDate();
+    for (let i = startDay - 1; i >= 0; i--) {
+      days.push({
+        date: new Date(year, month - 1, prevMonthLastDay - i),
+        dayNumber: prevMonthLastDay - i,
+        isCurrentMonth: false,
+        isToday: false,
+      });
+    }
+    
+    // Current month days
+    const today = new Date();
+    for (let i = 1; i <= daysInMonth; i++) {
+      const date = new Date(year, month, i);
+      days.push({
+        date,
+        dayNumber: i,
+        isCurrentMonth: true,
+        isToday: 
+          date.getDate() === today.getDate() &&
+          date.getMonth() === today.getMonth() &&
+          date.getFullYear() === today.getFullYear(),
+      });
+    }
+    
+    // Next month days
+    const remainingDays = 42 - days.length;
+    for (let i = 1; i <= remainingDays; i++) {
+      days.push({
+        date: new Date(year, month + 1, i),
+        dayNumber: i,
+        isCurrentMonth: false,
+        isToday: false,
+      });
+    }
+    
+    return days;
   };
 
   const getAppointmentPosition = (startTime: string, endTime: string) => {
@@ -275,20 +339,118 @@ const Appointments = () => {
           </motion.div>
         )}
 
-        {/* Week/Month view placeholder */}
-        {(view === "week" || view === "month") && (
+        {/* Week view */}
+        {view === "week" && (
           <motion.div variants={itemVariants}>
             <Card>
-              <CardContent className="p-12 text-center">
-                <div className="w-16 h-16 rounded-full bg-muted mx-auto mb-4 flex items-center justify-center">
-                  <Clock className="h-8 w-8 text-muted-foreground" />
+              <CardContent className="p-4">
+                <div className="overflow-x-auto">
+                  <div className="grid grid-cols-8 gap-px bg-border min-w-[800px] rounded-lg overflow-hidden">
+                    {/* Header row */}
+                    <div className="bg-background p-3 font-medium text-sm text-muted-foreground">
+                      Hora
+                    </div>
+                    {getWeekDays().map((day, i) => (
+                      <div
+                        key={i}
+                        onClick={() => {
+                          setCurrentDate(day);
+                          setView("day");
+                        }}
+                        className={cn(
+                          "bg-background p-3 text-center cursor-pointer hover:bg-muted/50 transition-colors",
+                          day.toDateString() === new Date().toDateString() && "bg-primary/10"
+                        )}
+                      >
+                        <p className="text-xs text-muted-foreground uppercase">
+                          {day.toLocaleDateString("es-ES", { weekday: "short" })}
+                        </p>
+                        <p className={cn(
+                          "font-bold text-lg",
+                          day.toDateString() === new Date().toDateString() && "text-primary"
+                        )}>
+                          {day.getDate()}
+                        </p>
+                      </div>
+                    ))}
+                    
+                    {/* Time slots */}
+                    {hours.map((hour) => (
+                      <>
+                        <div key={`hour-${hour}`} className="bg-background p-2 text-sm text-muted-foreground border-t border-border">
+                          {`${hour.toString().padStart(2, "0")}:00`}
+                        </div>
+                        {getWeekDays().map((day, dayIndex) => {
+                          const dayAppointments = appointments.filter(
+                            (apt) => parseInt(apt.startTime.split(":")[0]) === hour
+                          );
+                          return (
+                            <div
+                              key={`${hour}-${dayIndex}`}
+                              className="bg-background p-1 min-h-[60px] border-t border-border hover:bg-muted/50 cursor-pointer transition-colors"
+                            >
+                              {dayIndex === 0 && dayAppointments.slice(0, 1).map((apt) => (
+                                <div
+                                  key={apt.id}
+                                  className="bg-primary/10 border-l-2 border-primary p-1 rounded text-xs"
+                                >
+                                  <p className="font-medium truncate">{apt.patientName}</p>
+                                  <p className="text-muted-foreground truncate">{apt.treatment}</p>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })}
+                      </>
+                    ))}
+                  </div>
                 </div>
-                <h3 className="text-lg font-semibold text-foreground mb-2">
-                  Vista {view === "week" ? "semanal" : "mensual"}
-                </h3>
-                <p className="text-muted-foreground">
-                  Próximamente disponible
-                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Month view */}
+        {view === "month" && (
+          <motion.div variants={itemVariants}>
+            <Card>
+              <CardContent className="p-4">
+                <div className="grid grid-cols-7 gap-1">
+                  {["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"].map((day) => (
+                    <div key={day} className="text-center font-medium text-muted-foreground py-3 text-sm border-b border-border">
+                      {day}
+                    </div>
+                  ))}
+                  {generateMonthDays().map((day, i) => (
+                    <div
+                      key={i}
+                      onClick={() => {
+                        setCurrentDate(day.date);
+                        setView("day");
+                      }}
+                      className={cn(
+                        "min-h-24 p-2 border rounded-lg text-sm cursor-pointer transition-colors hover:bg-muted/50",
+                        !day.isCurrentMonth && "bg-muted/20 text-muted-foreground",
+                        day.isToday && "ring-2 ring-primary ring-offset-2"
+                      )}
+                    >
+                      <span className={cn(
+                        "inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-medium",
+                        day.isToday && "bg-primary text-primary-foreground"
+                      )}>
+                        {day.dayNumber}
+                      </span>
+                      {/* Show appointments for first few days as demo */}
+                      {day.isCurrentMonth && day.dayNumber <= 5 && (
+                        <div className="mt-1 space-y-1">
+                          <div className="bg-primary/10 border-l-2 border-primary px-1 py-0.5 rounded text-xs truncate">
+                            {appointments[day.dayNumber - 1]?.patientName || "Cita"}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </motion.div>
