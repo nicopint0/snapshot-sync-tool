@@ -106,7 +106,12 @@ const IntegrationsWhatsApp = () => {
     setIsTesting(true);
     try {
       const response = await fetch(
-        `https://graph.facebook.com/v18.0/${config.phone_number_id}?access_token=${config.access_token}`
+        `https://graph.facebook.com/v18.0/${config.phone_number_id}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${config.access_token}`
+          }
+        }
       );
       
       if (response.ok) {
