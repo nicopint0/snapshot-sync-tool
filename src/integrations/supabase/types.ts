@@ -384,6 +384,65 @@ export type Database = {
           },
         ]
       }
+      payment_config: {
+        Row: {
+          clinic_id: string
+          created_at: string | null
+          default_currency: string | null
+          id: string
+          mp_access_token: string | null
+          mp_country: string | null
+          mp_enabled: boolean | null
+          mp_public_key: string | null
+          stripe_enabled: boolean | null
+          stripe_mode: string | null
+          stripe_publishable_key: string | null
+          stripe_secret_key: string | null
+          stripe_webhook_secret: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          clinic_id: string
+          created_at?: string | null
+          default_currency?: string | null
+          id?: string
+          mp_access_token?: string | null
+          mp_country?: string | null
+          mp_enabled?: boolean | null
+          mp_public_key?: string | null
+          stripe_enabled?: boolean | null
+          stripe_mode?: string | null
+          stripe_publishable_key?: string | null
+          stripe_secret_key?: string | null
+          stripe_webhook_secret?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          clinic_id?: string
+          created_at?: string | null
+          default_currency?: string | null
+          id?: string
+          mp_access_token?: string | null
+          mp_country?: string | null
+          mp_enabled?: boolean | null
+          mp_public_key?: string | null
+          stripe_enabled?: boolean | null
+          stripe_mode?: string | null
+          stripe_publishable_key?: string | null
+          stripe_secret_key?: string | null
+          stripe_webhook_secret?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_config_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: true
+            referencedRelation: "clinics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
@@ -573,6 +632,53 @@ export type Database = {
             foreignKeyName: "user_roles_clinic_id_fkey"
             columns: ["clinic_id"]
             isOneToOne: false
+            referencedRelation: "clinics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_config: {
+        Row: {
+          access_token: string | null
+          business_account_id: string | null
+          clinic_id: string
+          created_at: string | null
+          id: string
+          is_connected: boolean | null
+          last_verified_at: string | null
+          phone_number_id: string | null
+          updated_at: string | null
+          verify_token: string | null
+        }
+        Insert: {
+          access_token?: string | null
+          business_account_id?: string | null
+          clinic_id: string
+          created_at?: string | null
+          id?: string
+          is_connected?: boolean | null
+          last_verified_at?: string | null
+          phone_number_id?: string | null
+          updated_at?: string | null
+          verify_token?: string | null
+        }
+        Update: {
+          access_token?: string | null
+          business_account_id?: string | null
+          clinic_id?: string
+          created_at?: string | null
+          id?: string
+          is_connected?: boolean | null
+          last_verified_at?: string | null
+          phone_number_id?: string | null
+          updated_at?: string | null
+          verify_token?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_config_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: true
             referencedRelation: "clinics"
             referencedColumns: ["id"]
           },
