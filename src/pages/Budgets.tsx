@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import AppLayout from "@/components/layout/AppLayout";
+import NewBudgetDialog from "@/components/budgets/NewBudgetDialog";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Budget {
@@ -43,6 +44,7 @@ const Budgets = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [showNewBudget, setShowNewBudget] = useState(false);
 
   useEffect(() => {
     fetchBudgets();
@@ -122,12 +124,16 @@ const Budgets = () => {
             <h1 className="text-2xl font-bold text-foreground">{t("budgets.title")}</h1>
             <p className="text-muted-foreground">Gestión de presupuestos de tratamientos</p>
           </div>
-          <Button>
+          <Button onClick={() => setShowNewBudget(true)}>
             <Plus className="h-4 w-4 mr-2" />
             Nuevo Presupuesto
           </Button>
         </div>
 
+        <NewBudgetDialog
+          open={showNewBudget}
+          onOpenChange={setShowNewBudget}
+        />
         {/* Filters */}
         <Card>
           <CardContent className="pt-6">
@@ -174,7 +180,7 @@ const Budgets = () => {
             ) : filteredBudgets.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-muted-foreground">No se encontraron presupuestos</p>
-                <Button className="mt-4">
+                <Button className="mt-4" onClick={() => setShowNewBudget(true)}>
                   <Plus className="h-4 w-4 mr-2" />
                   Crear primer presupuesto
                 </Button>
