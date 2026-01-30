@@ -1,8 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Plus, Search, DollarSign, CreditCard, Banknote, Wallet, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Search, DollarSign, CreditCard, Banknote, Wallet, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import AppLayout from "@/components/layout/AppLayout";
+import RegisterPaymentDialog from "@/components/payments/RegisterPaymentDialog";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Payment {
   id: string;
@@ -33,16 +35,13 @@ interface Payment {
 
 const Payments = () => {
   const { t } = useTranslation();
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { profile } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
 
-  useEffect(() => {
-    fetchPayments();
-  }, []);
-
-  const fetchPayments = async () => {
-    try {
+  const { data: payments = [], isLoading } = useQuery({
+    queryKey: ["payments", profile?.clinic_id],
+    queryFn: async () => {
+      if (!profile?.clinic_id) return [];
       const { data, error } = await supabase
         .from("payments")
         .select(`
@@ -52,16 +51,14 @@ const Payments = () => {
             last_name
           )
         `)
+        .eq("clinic_id", profile.clinic_id)
         .order("payment_date", { ascending: false });
 
       if (error) throw error;
-      setPayments(data || []);
-    } catch (error) {
-      console.error("Error fetching payments:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+      return data as Payment[];
+    },
+    enabled: !!profile?.clinic_id,
+  });
 
   const getMethodIcon = (method: string | null) => {
     switch (method) {
@@ -81,26 +78,35 @@ const Payments = () => {
       cash: "Efectivo",
       card: "Tarjeta",
       transfer: "Transferencia",
+      other: "Otro",
     };
     return labels[method || ""] || method || "N/A";
   };
 
   const totalMonth = payments
-    .filter(p => {
+    .filter((p) => {
       const paymentDate = new Date(p.payment_date || p.created_at);
       const now = new Date();
-      return paymentDate.getMonth() === now.getMonth() && 
-             paymentDate.getFullYear() === now.getFullYear();
+      return (
+        paymentDate.getMonth() === now.getMonth() &&
+        paymentDate.getFullYear() === now.getFullYear()
+      );
     })
     .reduce((sum, p) => sum + p.amount, 0);
 
   const paymentsByMethod = {
-    cash: payments.filter(p => p.payment_method === "cash").reduce((s, p) => s + p.amount, 0),
-    card: payments.filter(p => p.payment_method === "card").reduce((s, p) => s + p.amount, 0),
-    transfer: payments.filter(p => p.payment_method === "transfer").reduce((s, p) => s + p.amount, 0),
+    cash: payments
+      .filter((p) => p.payment_method === "cash")
+      .reduce((s, p) => s + p.amount, 0),
+    card: payments
+      .filter((p) => p.payment_method === "card")
+      .reduce((s, p) => s + p.amount, 0),
+    transfer: payments
+      .filter((p) => p.payment_method === "transfer")
+      .reduce((s, p) => s + p.amount, 0),
   };
 
-  const filteredPayments = payments.filter(p => {
+  const filteredPayments = payments.filter((p) => {
     const patientName = `${p.patients?.first_name || ""} ${p.patients?.last_name || ""}`.toLowerCase();
     return patientName.includes(searchQuery.toLowerCase());
   });
@@ -115,13 +121,12 @@ const Payments = () => {
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-foreground">{t("payments.title")}</h1>
+            <h1 className="text-2xl font-bold text-foreground">
+              {t("payments.title")}
+            </h1>
             <p className="text-muted-foreground">Registro de pagos recibidos</p>
           </div>
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Nuevo Pago
-          </Button>
+          <RegisterPaymentDialog />
         </div>
 
         {/* Summary Cards */}
@@ -131,7 +136,9 @@ const Payments = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Total del Mes</p>
-                  <p className="text-2xl font-bold">${totalMonth.toLocaleString()}</p>
+                  <p className="text-2xl font-bold">
+                    ${totalMonth.toLocaleString()}
+                  </p>
                 </div>
                 <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
                   <DollarSign className="h-6 w-6 text-primary" />
@@ -144,7 +151,9 @@ const Payments = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Efectivo</p>
-                  <p className="text-2xl font-bold">${paymentsByMethod.cash.toLocaleString()}</p>
+                  <p className="text-2xl font-bold">
+                    ${paymentsByMethod.cash.toLocaleString()}
+                  </p>
                 </div>
                 <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
                   <Banknote className="h-6 w-6 text-green-600 dark:text-green-400" />
@@ -157,7 +166,9 @@ const Payments = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Tarjeta</p>
-                  <p className="text-2xl font-bold">${paymentsByMethod.card.toLocaleString()}</p>
+                  <p className="text-2xl font-bold">
+                    ${paymentsByMethod.card.toLocaleString()}
+                  </p>
                 </div>
                 <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
                   <CreditCard className="h-6 w-6 text-blue-600 dark:text-blue-400" />
@@ -170,7 +181,9 @@ const Payments = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Transferencia</p>
-                  <p className="text-2xl font-bold">${paymentsByMethod.transfer.toLocaleString()}</p>
+                  <p className="text-2xl font-bold">
+                    ${paymentsByMethod.transfer.toLocaleString()}
+                  </p>
                 </div>
                 <div className="h-12 w-12 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
                   <Wallet className="h-6 w-6 text-purple-600 dark:text-purple-400" />
@@ -201,17 +214,16 @@ const Payments = () => {
             <CardTitle className="text-lg">Historial de Pagos</CardTitle>
           </CardHeader>
           <CardContent>
-            {loading ? (
+            {isLoading ? (
               <div className="flex justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             ) : filteredPayments.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-muted-foreground">No se encontraron pagos</p>
-                <Button className="mt-4">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Registrar primer pago
-                </Button>
+                <div className="mt-4">
+                  <RegisterPaymentDialog />
+                </div>
               </div>
             ) : (
               <Table>
@@ -228,7 +240,9 @@ const Payments = () => {
                   {filteredPayments.map((payment) => (
                     <TableRow key={payment.id}>
                       <TableCell>
-                        {new Date(payment.payment_date || payment.created_at).toLocaleDateString("es-ES", {
+                        {new Date(
+                          payment.payment_date || payment.created_at
+                        ).toLocaleDateString("es-ES", {
                           day: "numeric",
                           month: "short",
                           year: "numeric",

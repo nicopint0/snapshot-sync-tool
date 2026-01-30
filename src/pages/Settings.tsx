@@ -10,18 +10,19 @@ import {
   CreditCard,
   Save,
   Loader2,
+  Plug,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import AppLayout from "@/components/layout/AppLayout";
+import IntegrationsSection from "@/components/settings/IntegrationsSection";
 import { useAuth } from "@/hooks/useAuth";
 
-type SettingsSection = "profile" | "clinic" | "users" | "schedule" | "notifications" | "subscription";
+type SettingsSection = "profile" | "clinic" | "users" | "schedule" | "notifications" | "integrations" | "subscription";
 
 const Settings = () => {
   const { t } = useTranslation();
@@ -35,6 +36,7 @@ const Settings = () => {
     { id: "users" as const, label: "Usuarios y Permisos", icon: Users },
     { id: "schedule" as const, label: "Horarios", icon: Clock },
     { id: "notifications" as const, label: "Notificaciones", icon: Bell },
+    { id: "integrations" as const, label: "Integraciones", icon: Plug },
     { id: "subscription" as const, label: "Suscripción", icon: CreditCard },
   ];
 
@@ -184,6 +186,9 @@ const Settings = () => {
             </CardContent>
           </Card>
         );
+
+      case "integrations":
+        return <IntegrationsSection />;
 
       case "subscription":
         return (
