@@ -103,10 +103,17 @@ const IntegrationsWhatsApp = () => {
       return;
     }
 
+    // Validate phone_number_id format (numeric only to prevent URL manipulation)
+    const phoneIdRegex = /^\d+$/;
+    if (!phoneIdRegex.test(config.phone_number_id)) {
+      toast.error("Phone Number ID debe ser numérico");
+      return;
+    }
+
     setIsTesting(true);
     try {
       const response = await fetch(
-        `https://graph.facebook.com/v18.0/${config.phone_number_id}`,
+        `https://graph.facebook.com/v18.0/${encodeURIComponent(config.phone_number_id)}`,
         {
           headers: {
             'Authorization': `Bearer ${config.access_token}`
