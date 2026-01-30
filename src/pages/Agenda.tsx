@@ -263,116 +263,30 @@ const Agenda = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Mini Calendar */}
-          <Card className="lg:col-span-1">
-            <CardContent className="p-3">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={(date) => date && setSelectedDate(date)}
-                className="rounded-md"
-              />
-            </CardContent>
-          </Card>
+        {/* Day View - Shows mini calendar + schedule */}
+        {view === "day" && (
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            {/* Mini Calendar */}
+            <Card className="lg:col-span-1">
+              <CardContent className="p-3">
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={(date) => date && setSelectedDate(date)}
+                  className="rounded-md pointer-events-auto"
+                />
+              </CardContent>
+            </Card>
 
-          {/* Schedule Grid */}
-          <Card className="lg:col-span-3">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <CalendarIcon className="h-5 w-5" />
-                {view === "day" && "Vista Diaria"}
-                {view === "week" && "Vista Semanal"}
-                {view === "month" && "Vista Mensual"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {view === "month" ? (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-7 gap-1">
-                    {["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"].map((day) => (
-                      <div key={day} className="text-center font-medium text-muted-foreground py-2 text-sm">
-                        {day}
-                      </div>
-                    ))}
-                    {generateMonthDays().map((day, i) => (
-                      <div
-                        key={i}
-                        onClick={() => {
-                          setSelectedDate(day.date);
-                          setView("day");
-                        }}
-                        className={cn(
-                          "min-h-20 p-1 border rounded text-sm cursor-pointer transition-colors hover:bg-muted/50",
-                          !day.isCurrentMonth && "bg-muted/30 text-muted-foreground",
-                          day.isToday && "ring-2 ring-primary"
-                        )}
-                      >
-                        <span className={cn(
-                          "inline-flex items-center justify-center w-6 h-6 rounded-full text-xs",
-                          day.isToday && "bg-primary text-primary-foreground"
-                        )}>
-                          {day.dayNumber}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : view === "week" ? (
-                <div className="overflow-x-auto">
-                  <div className="grid grid-cols-8 gap-px bg-border min-w-[800px]">
-                    {/* Header row */}
-                    <div className="bg-background p-2 font-medium text-sm text-muted-foreground">
-                      Hora
-                    </div>
-                    {getWeekDays().map((day, i) => (
-                      <div
-                        key={i}
-                        className={`bg-background p-2 text-center ${
-                          day.toDateString() === new Date().toDateString()
-                            ? "bg-primary/10"
-                            : ""
-                        }`}
-                      >
-                        <p className="text-xs text-muted-foreground">
-                          {day.toLocaleDateString("es-ES", { weekday: "short" })}
-                        </p>
-                        <p className="font-bold text-lg">{day.getDate()}</p>
-                      </div>
-                    ))}
-                    
-                    {/* Time slots */}
-                    {hours.map((hour) => (
-                      <>
-                        <div key={`hour-${hour}`} className="bg-background p-2 text-sm text-muted-foreground border-t border-border">
-                          {`${hour.toString().padStart(2, "0")}:00`}
-                        </div>
-                        {getWeekDays().map((day, dayIndex) => (
-                          <div
-                            key={`${hour}-${dayIndex}`}
-                            className="bg-background p-1 min-h-[60px] border-t border-border hover:bg-muted/50 cursor-pointer transition-colors"
-                          >
-                            {/* Show appointments for this time slot */}
-                            {appointments
-                              .filter((apt) => parseInt(apt.time.split(":")[0]) === hour)
-                              .slice(0, 1)
-                              .map((apt) => (
-                                <div
-                                  key={apt.id}
-                                  className="bg-primary/10 border-l-2 border-primary p-1 rounded text-xs"
-                                >
-                                  <p className="font-medium truncate">{apt.patientName}</p>
-                                  <p className="text-muted-foreground truncate">{apt.treatment}</p>
-                                </div>
-                              ))}
-                          </div>
-                        ))}
-                      </>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                /* Day View */
+            {/* Day Schedule */}
+            <Card className="lg:col-span-3">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <CalendarIcon className="h-5 w-5" />
+                  Vista Diaria
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
                 <div className="space-y-2">
                   {hours.map((hour) => (
                     <div key={hour} className="flex gap-4 py-3 border-b border-border last:border-0">
@@ -406,10 +320,133 @@ const Agenda = () => {
                     </div>
                   ))}
                 </div>
-              )}
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Week View - Full width calendar grid */}
+        {view === "week" && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <CalendarIcon className="h-5 w-5" />
+                Vista Semanal
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <div className="grid grid-cols-8 gap-px bg-border min-w-[800px]">
+                  {/* Header row */}
+                  <div className="bg-background p-2 font-medium text-sm text-muted-foreground">
+                    Hora
+                  </div>
+                  {getWeekDays().map((day, i) => (
+                    <div
+                      key={i}
+                      onClick={() => {
+                        setSelectedDate(day);
+                        setView("day");
+                      }}
+                      className={cn(
+                        "bg-background p-2 text-center cursor-pointer hover:bg-muted/50 transition-colors",
+                        day.toDateString() === new Date().toDateString() && "bg-primary/10"
+                      )}
+                    >
+                      <p className="text-xs text-muted-foreground uppercase">
+                        {day.toLocaleDateString("es-ES", { weekday: "short" })}
+                      </p>
+                      <p className={cn(
+                        "font-bold text-lg",
+                        day.toDateString() === new Date().toDateString() && "text-primary"
+                      )}>
+                        {day.getDate()}
+                      </p>
+                    </div>
+                  ))}
+                  
+                  {/* Time slots */}
+                  {hours.map((hour) => (
+                    <>
+                      <div key={`hour-${hour}`} className="bg-background p-2 text-sm text-muted-foreground border-t border-border">
+                        {`${hour.toString().padStart(2, "0")}:00`}
+                      </div>
+                      {getWeekDays().map((day, dayIndex) => (
+                        <div
+                          key={`${hour}-${dayIndex}`}
+                          className="bg-background p-1 min-h-[60px] border-t border-border hover:bg-muted/50 cursor-pointer transition-colors"
+                        >
+                          {appointments
+                            .filter((apt) => parseInt(apt.time.split(":")[0]) === hour)
+                            .slice(0, 1)
+                            .map((apt) => (
+                              <div
+                                key={apt.id}
+                                className="bg-primary/10 border-l-2 border-primary p-1 rounded text-xs"
+                              >
+                                <p className="font-medium truncate">{apt.patientName}</p>
+                                <p className="text-muted-foreground truncate">{apt.treatment}</p>
+                              </div>
+                            ))}
+                        </div>
+                      ))}
+                    </>
+                  ))}
+                </div>
+              </div>
             </CardContent>
           </Card>
-        </div>
+        )}
+
+        {/* Month View - Full width calendar grid */}
+        {view === "month" && (
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <CalendarIcon className="h-5 w-5" />
+                Vista Mensual - {selectedDate.toLocaleDateString("es-ES", { month: "long", year: "numeric" })}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-7 gap-1">
+                {["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"].map((day) => (
+                  <div key={day} className="text-center font-medium text-muted-foreground py-3 text-sm border-b border-border">
+                    {day}
+                  </div>
+                ))}
+                {generateMonthDays().map((day, i) => (
+                  <div
+                    key={i}
+                    onClick={() => {
+                      setSelectedDate(day.date);
+                      setView("day");
+                    }}
+                    className={cn(
+                      "min-h-24 p-2 border rounded-lg text-sm cursor-pointer transition-colors hover:bg-muted/50",
+                      !day.isCurrentMonth && "bg-muted/20 text-muted-foreground",
+                      day.isToday && "ring-2 ring-primary ring-offset-2"
+                    )}
+                  >
+                    <span className={cn(
+                      "inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-medium",
+                      day.isToday && "bg-primary text-primary-foreground"
+                    )}>
+                      {day.dayNumber}
+                    </span>
+                    {/* Mock appointments indicator */}
+                    {day.isCurrentMonth && day.dayNumber <= 4 && (
+                      <div className="mt-1 space-y-1">
+                        <div className="bg-primary/10 border-l-2 border-primary px-1 py-0.5 rounded text-xs truncate">
+                          {appointments[day.dayNumber - 1]?.patientName || "Cita"}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Today's Appointments List */}
         <Card>
