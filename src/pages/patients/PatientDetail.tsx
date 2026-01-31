@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -15,7 +15,7 @@ import {
   FileText,
   CreditCard,
   Stethoscope,
-  Save,
+  Printer,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,9 +23,17 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import AppLayout from "@/components/layout/AppLayout";
-import Odontogram from "@/components/clinical/Odontogram";
+import OdontogramVisual from "@/components/clinical/OdontogramVisual";
+import PatientHeader from "@/components/print/PatientHeader";
+import { usePrint } from "@/hooks/usePrint";
 import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/integrations/supabase/types";
 
@@ -69,6 +77,34 @@ const PatientDetail = () => {
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("summary");
+  
+  // Refs for printing
+  const odontogramRef = useRef<HTMLDivElement>(null);
+  const summaryRef = useRef<HTMLDivElement>(null);
+  const treatmentsRef = useRef<HTMLDivElement>(null);
+  const budgetsRef = useRef<HTMLDivElement>(null);
+  const fullReportRef = useRef<HTMLDivElement>(null);
+  
+  // Print hooks for each section
+  const { contentRef: printOdontogramRef, handlePrint: printOdontogram } = usePrint<HTMLDivElement>({
+    title: `Odontograma - ${patient?.first_name} ${patient?.last_name}`,
+  });
+  
+  const { contentRef: printSummaryRef, handlePrint: printSummary } = usePrint<HTMLDivElement>({
+    title: `Resumen - ${patient?.first_name} ${patient?.last_name}`,
+  });
+  
+  const { contentRef: printTreatmentsRef, handlePrint: printTreatments } = usePrint<HTMLDivElement>({
+    title: `Tratamientos - ${patient?.first_name} ${patient?.last_name}`,
+  });
+  
+  const { contentRef: printBudgetsRef, handlePrint: printBudgets } = usePrint<HTMLDivElement>({
+    title: `Presupuestos - ${patient?.first_name} ${patient?.last_name}`,
+  });
+  
+  const { contentRef: printFullRef, handlePrint: printFullReport } = usePrint<HTMLDivElement>({
+    title: `Ficha Clínica - ${patient?.first_name} ${patient?.last_name}`,
+  });
 
   // Fetch patient
   useEffect(() => {
@@ -206,7 +242,7 @@ const PatientDetail = () => {
               </div>
             </div>
             
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               {patient.phone && (
                 <Button variant="outline" size="sm" asChild>
                   <a href={`tel:${patient.phone}`}>
@@ -223,6 +259,34 @@ const PatientDetail = () => {
                   </a>
                 </Button>
               )}
+              
+              {/* Print dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Printer className="h-4 w-4 mr-2" />
+                    Imprimir
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={printFullReport}>
+                    Ficha Clínica Completa
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={printSummary}>
+                    Solo Resumen
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={printOdontogram}>
+                    Solo Odontograma
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={printTreatments}>
+                    Solo Tratamientos
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={printBudgets}>
+                    Solo Presupuestos
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              
               <Button size="sm">
                 <Edit className="h-4 w-4 mr-2" />
                 Editar
@@ -243,168 +307,180 @@ const PatientDetail = () => {
           </TabsList>
 
           <TabsContent value="summary" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Contact Info */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Información de Contacto</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {patient.email && (
-                    <div className="flex items-center gap-3">
-                      <Mail className="h-4 w-4 text-muted-foreground" />
-                      <span>{patient.email}</span>
-                    </div>
-                  )}
-                  {patient.phone && (
-                    <div className="flex items-center gap-3">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span>{patient.phone}</span>
-                    </div>
-                  )}
-                  {(patient.address || patient.city) && (
-                    <div className="flex items-start gap-3">
-                      <MapPin className="h-4 w-4 text-muted-foreground mt-0.5" />
-                      <div>
-                        {patient.address && <p>{patient.address}</p>}
-                        {(patient.city || patient.state) && (
-                          <p className="text-muted-foreground">
-                            {[patient.city, patient.state, patient.postal_code].filter(Boolean).join(", ")}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  {patient.birth_date && (
-                    <div className="flex items-center gap-3">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <span>
-                        {new Date(patient.birth_date).toLocaleDateString("es-ES", {
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                        })}
-                      </span>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Medical Info */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Información Médica</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-2">Alergias</p>
-                    <div className="flex flex-wrap gap-2">
-                      {patient.allergies && patient.allergies.length > 0 ? (
-                        patient.allergies.map((allergy, i) => (
-                          <Badge key={i} variant="destructive">
-                            {allergy}
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-muted-foreground text-sm">Sin alergias registradas</span>
-                      )}
-                    </div>
-                  </div>
-                  <Separator />
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-2">Medicamentos</p>
-                    <div className="flex flex-wrap gap-2">
-                      {patient.medications && patient.medications.length > 0 ? (
-                        patient.medications.map((med, i) => (
-                          <Badge key={i} variant="secondary">
-                            {med}
-                          </Badge>
-                        ))
-                      ) : (
-                        <span className="text-muted-foreground text-sm">Sin medicamentos registrados</span>
-                      )}
-                    </div>
-                  </div>
-                  {patient.medical_notes && (
-                    <>
-                      <Separator />
-                      <div>
-                        <p className="text-sm text-muted-foreground mb-2">Notas Médicas</p>
-                        <p className="text-sm">{patient.medical_notes}</p>
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Emergency Contact */}
-              {(patient.emergency_contact_name || patient.emergency_contact_phone) && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Contacto de Emergencia</CardTitle>
+            <div ref={printSummaryRef}>
+              <PatientHeader patient={patient} />
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:grid-cols-2 print:gap-4">
+                {/* Contact Info */}
+                <Card className="print:border print:shadow-none">
+                  <CardHeader className="print:pb-2">
+                    <CardTitle className="text-lg print:text-sm">Información de Contacto</CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    {patient.emergency_contact_name && (
-                      <p className="font-medium">{patient.emergency_contact_name}</p>
+                  <CardContent className="space-y-4 print:space-y-2 print:text-xs">
+                    {patient.email && (
+                      <div className="flex items-center gap-3 print:gap-2">
+                        <Mail className="h-4 w-4 text-muted-foreground print:h-3 print:w-3" />
+                        <span>{patient.email}</span>
+                      </div>
                     )}
-                    {patient.emergency_contact_phone && (
-                      <p className="text-muted-foreground">{patient.emergency_contact_phone}</p>
+                    {patient.phone && (
+                      <div className="flex items-center gap-3 print:gap-2">
+                        <Phone className="h-4 w-4 text-muted-foreground print:h-3 print:w-3" />
+                        <span>{patient.phone}</span>
+                      </div>
+                    )}
+                    {(patient.address || patient.city) && (
+                      <div className="flex items-start gap-3 print:gap-2">
+                        <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 print:h-3 print:w-3" />
+                        <div>
+                          {patient.address && <p>{patient.address}</p>}
+                          {(patient.city || patient.state) && (
+                            <p className="text-muted-foreground">
+                              {[patient.city, patient.state, patient.postal_code].filter(Boolean).join(", ")}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {patient.birth_date && (
+                      <div className="flex items-center gap-3 print:gap-2">
+                        <Calendar className="h-4 w-4 text-muted-foreground print:h-3 print:w-3" />
+                        <span>
+                          {new Date(patient.birth_date).toLocaleDateString("es-ES", {
+                            day: "numeric",
+                            month: "long",
+                            year: "numeric",
+                          })}
+                        </span>
+                      </div>
                     )}
                   </CardContent>
                 </Card>
-              )}
 
-              {/* Upcoming Appointments */}
-              <Card>
+                {/* Medical Info */}
+                <Card className="print:border print:shadow-none">
+                  <CardHeader className="print:pb-2">
+                    <CardTitle className="text-lg print:text-sm">Información Médica</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4 print:space-y-2 print:text-xs">
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-2 print:text-xs print:mb-1">Alergias</p>
+                      <div className="flex flex-wrap gap-2 print:gap-1">
+                        {patient.allergies && patient.allergies.length > 0 ? (
+                          patient.allergies.map((allergy, i) => (
+                            <Badge key={i} variant="destructive" className="print:text-[10px] print:px-1 print:py-0">
+                              {allergy}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-muted-foreground text-sm">Sin alergias registradas</span>
+                        )}
+                      </div>
+                    </div>
+                    <Separator />
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-2 print:text-xs print:mb-1">Medicamentos</p>
+                      <div className="flex flex-wrap gap-2 print:gap-1">
+                        {patient.medications && patient.medications.length > 0 ? (
+                          patient.medications.map((med, i) => (
+                            <Badge key={i} variant="secondary" className="print:text-[10px] print:px-1 print:py-0">
+                              {med}
+                            </Badge>
+                          ))
+                        ) : (
+                          <span className="text-muted-foreground text-sm">Sin medicamentos registrados</span>
+                        )}
+                      </div>
+                    </div>
+                    {patient.medical_notes && (
+                      <>
+                        <Separator />
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-2 print:text-xs print:mb-1">Notas Médicas</p>
+                          <p className="text-sm print:text-xs">{patient.medical_notes}</p>
+                        </div>
+                      </>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Emergency Contact */}
+                {(patient.emergency_contact_name || patient.emergency_contact_phone) && (
+                  <Card className="print:border print:shadow-none">
+                    <CardHeader className="print:pb-2">
+                      <CardTitle className="text-lg print:text-sm">Contacto de Emergencia</CardTitle>
+                    </CardHeader>
+                    <CardContent className="print:text-xs">
+                      {patient.emergency_contact_name && (
+                        <p className="font-medium">{patient.emergency_contact_name}</p>
+                      )}
+                      {patient.emergency_contact_phone && (
+                        <p className="text-muted-foreground">{patient.emergency_contact_phone}</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Upcoming Appointments */}
+                <Card className="print:border print:shadow-none">
+                  <CardHeader className="print:pb-2">
+                    <CardTitle className="text-lg print:text-sm">Próximas Citas</CardTitle>
+                  </CardHeader>
+                  <CardContent className="print:text-xs">
+                    <p className="text-muted-foreground text-sm">No hay citas programadas</p>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="odontogram">
+            <div ref={printOdontogramRef}>
+              <PatientHeader patient={patient} />
+              <OdontogramVisual
+                patientId={id}
+                data={odontogramData.map(o => ({
+                  tooth_number: o.tooth_number,
+                  condition: o.condition as any,
+                  notes: o.notes || undefined,
+                  surfaces: o.surfaces || undefined,
+                }))}
+                onSave={handleSaveOdontogram}
+              />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="treatments">
+            <div ref={printTreatmentsRef}>
+              <PatientHeader patient={patient} />
+              <Card className="print:border print:shadow-none">
                 <CardHeader>
-                  <CardTitle className="text-lg">Próximas Citas</CardTitle>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Stethoscope className="h-5 w-5" />
+                    Tratamientos
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground text-sm">No hay citas programadas</p>
+                  <p className="text-muted-foreground">No hay tratamientos registrados para este paciente</p>
                 </CardContent>
               </Card>
             </div>
           </TabsContent>
 
-          <TabsContent value="odontogram">
-            <Odontogram
-              patientId={id}
-              data={odontogramData.map(o => ({
-                tooth_number: o.tooth_number,
-                condition: o.condition as any,
-                notes: o.notes || undefined,
-                surfaces: o.surfaces || undefined,
-              }))}
-              onSave={handleSaveOdontogram}
-            />
-          </TabsContent>
-
-          <TabsContent value="treatments">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Stethoscope className="h-5 w-5" />
-                  Tratamientos
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">No hay tratamientos registrados para este paciente</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
           <TabsContent value="budgets">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Presupuestos
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">No hay presupuestos registrados para este paciente</p>
-              </CardContent>
-            </Card>
+            <div ref={printBudgetsRef}>
+              <PatientHeader patient={patient} />
+              <Card className="print:border print:shadow-none">
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Presupuestos
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground">No hay presupuestos registrados para este paciente</p>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="payments">
@@ -435,6 +511,58 @@ const PatientDetail = () => {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Hidden full report container for printing all sections */}
+        <div ref={printFullRef} className="hidden">
+          <PatientHeader patient={patient} />
+          
+          {/* Summary section */}
+          <div className="mb-6">
+            <h2 className="text-lg font-bold mb-4 border-b pb-2">Resumen del Paciente</h2>
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <h3 className="font-semibold mb-2">Información de Contacto</h3>
+                {patient.email && <p>Email: {patient.email}</p>}
+                {patient.phone && <p>Teléfono: {patient.phone}</p>}
+                {patient.address && <p>Dirección: {patient.address}</p>}
+                {patient.city && <p>Ciudad: {patient.city}, {patient.state}</p>}
+              </div>
+              <div>
+                <h3 className="font-semibold mb-2">Información Médica</h3>
+                <p>Alergias: {patient.allergies?.join(", ") || "Ninguna"}</p>
+                <p>Medicamentos: {patient.medications?.join(", ") || "Ninguno"}</p>
+                {patient.medical_notes && <p>Notas: {patient.medical_notes}</p>}
+              </div>
+            </div>
+          </div>
+          
+          {/* Odontogram section */}
+          <div className="mb-6">
+            <h2 className="text-lg font-bold mb-4 border-b pb-2">Odontograma</h2>
+            <OdontogramVisual
+              patientId={id}
+              data={odontogramData.map(o => ({
+                tooth_number: o.tooth_number,
+                condition: o.condition as any,
+                notes: o.notes || undefined,
+                surfaces: o.surfaces || undefined,
+              }))}
+              readOnly
+            />
+          </div>
+          
+          {/* Treatments placeholder */}
+          <div className="mb-6">
+            <h2 className="text-lg font-bold mb-4 border-b pb-2">Tratamientos</h2>
+            <p className="text-sm text-muted-foreground">No hay tratamientos registrados</p>
+          </div>
+          
+          {/* Budgets placeholder */}
+          <div className="mb-6">
+            <h2 className="text-lg font-bold mb-4 border-b pb-2">Presupuestos</h2>
+            <p className="text-sm text-muted-foreground">No hay presupuestos registrados</p>
+          </div>
+        </div>
       </motion.div>
     </AppLayout>
   );
