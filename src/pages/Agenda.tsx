@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   ChevronLeft,
@@ -23,61 +25,91 @@ import { Calendar } from "@/components/ui/calendar";
 import AppLayout from "@/components/layout/AppLayout";
 import NewAppointmentModal from "@/components/appointments/NewAppointmentModal";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 type ViewType = "day" | "week" | "month";
 
+interface Appointment {
+  id: string;
+  patient_id: string;
+  patient_name: string;
+  time: string;
+  duration: number;
+  treatment: string;
+  status: string;
+  dentist: string;
+  scheduled_at: string;
+}
+
 const Agenda = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [view, setView] = useState<ViewType>("week");
   const [selectedDentist, setSelectedDentist] = useState<string>("all");
   const [showNewAppointment, setShowNewAppointment] = useState(false);
 
-  // Mock data for appointments
-  const appointments = [
-    {
-      id: "1",
-      patientName: "María López",
-      time: "09:00",
-      duration: 60,
-      treatment: "Limpieza dental",
-      status: "confirmed",
-      dentist: "Dr. Juan Pérez",
-    },
-    {
-      id: "2",
-      patientName: "Carlos García",
-      time: "10:30",
-      duration: 45,
-      treatment: "Revisión ortodoncia",
-      status: "scheduled",
-      dentist: "Dr. Juan Pérez",
-    },
-    {
-      id: "3",
-      patientName: "Ana Martínez",
-      time: "14:00",
-      duration: 90,
-      treatment: "Extracción molar",
-      status: "confirmed",
-      dentist: "Dra. Laura Sánchez",
-    },
-    {
-      id: "4",
-      patientName: "Roberto Sánchez",
-      time: "16:00",
-      duration: 60,
-      treatment: "Blanqueamiento",
-      status: "scheduled",
-      dentist: "Dr. Juan Pérez",
-    },
-  ];
+  // Fetch appointments from database
+  const { data: appointments = [], isLoading } = useQuery({
+    queryKey: ["appointments", selectedDate.toISOString().split("T")[0]],
+    queryFn: async () => {
+      const startOfWeek = new Date(selectedDate);
+      startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
+      
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(endOfWeek.getDate() + 7);
+      
+      const { data, error } = await supabase
+        .from("appointments")
+        .select(`
+          id,
+          patient_id,
+          scheduled_at,
+          duration_minutes,
+          status,
+          notes,
+          patients!inner(first_name, last_name),
+          treatments(name),
+          profiles!appointments_dentist_id_fkey(first_name, last_name)
+        `)
+        .gte("scheduled_at", startOfWeek.toISOString())
+        .lte("scheduled_at", endOfWeek.toISOString())
+        .order("scheduled_at", { ascending: true });
 
-  const dentists = [
-    { id: "all", name: "Todos los dentistas" },
-    { id: "1", name: "Dr. Juan Pérez" },
-    { id: "2", name: "Dra. Laura Sánchez" },
-  ];
+      if (error) throw error;
+
+      return (data || []).map((apt: any) => ({
+        id: apt.id,
+        patient_id: apt.patient_id,
+        patient_name: `${apt.patients.first_name} ${apt.patients.last_name}`,
+        time: new Date(apt.scheduled_at).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" }),
+        duration: apt.duration_minutes || 30,
+        treatment: apt.treatments?.name || "Consulta general",
+        status: apt.status || "scheduled",
+        dentist: apt.profiles ? `Dr. ${apt.profiles.first_name} ${apt.profiles.last_name}` : "Sin asignar",
+        scheduled_at: apt.scheduled_at,
+      })) as Appointment[];
+    },
+  });
+
+  // Fetch dentists
+  const { data: dentists = [] } = useQuery({
+    queryKey: ["dentists"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, first_name, last_name");
+      if (error) throw error;
+      return [
+        { id: "all", name: "Todos los dentistas" },
+        ...(data || []).map((d: any) => ({
+          id: d.id,
+          name: `Dr. ${d.first_name} ${d.last_name}`,
+        })),
+      ];
+    },
+  });
 
   const hours = Array.from({ length: 12 }, (_, i) => i + 8); // 8AM to 7PM
 
@@ -86,15 +118,19 @@ const Agenda = () => {
       confirmed: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
       scheduled: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
       cancelled: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
+      completed: "bg-gray-100 text-gray-700 dark:bg-gray-900 dark:text-gray-300",
+      in_progress: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300",
     };
     const labels: Record<string, string> = {
       confirmed: "Confirmada",
       scheduled: "Programada",
       cancelled: "Cancelada",
+      completed: "Completada",
+      in_progress: "En progreso",
     };
     return (
-      <Badge className={`${styles[status]} border-0`}>
-        {labels[status]}
+      <Badge className={`${styles[status] || styles.scheduled} border-0`}>
+        {labels[status] || status}
       </Badge>
     );
   };
@@ -132,6 +168,27 @@ const Agenda = () => {
       day.setDate(start.getDate() + i);
       return day;
     });
+  };
+
+  // Filter appointments for selected date (day view)
+  const getAppointmentsForDate = (date: Date) => {
+    return appointments.filter(apt => {
+      const aptDate = new Date(apt.scheduled_at);
+      return aptDate.toDateString() === date.toDateString();
+    });
+  };
+
+  // Get appointments for a specific hour on a specific day
+  const getAppointmentsForHour = (date: Date, hour: number) => {
+    return appointments.filter(apt => {
+      const aptDate = new Date(apt.scheduled_at);
+      return aptDate.toDateString() === date.toDateString() && aptDate.getHours() === hour;
+    });
+  };
+
+  // Navigate to patient detail
+  const handleAppointmentClick = (appointment: Appointment) => {
+    navigate(`/patients/${appointment.patient_id}`);
   };
 
   // Generate month days for calendar view
@@ -186,6 +243,8 @@ const Agenda = () => {
     
     return days;
   };
+
+  const todayAppointments = getAppointmentsForDate(selectedDate);
 
   return (
     <AppLayout>
@@ -288,17 +347,18 @@ const Agenda = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {hours.map((hour) => (
-                    <div key={hour} className="flex gap-4 py-3 border-b border-border last:border-0">
-                      <div className="w-16 text-sm text-muted-foreground shrink-0">
-                        {`${hour.toString().padStart(2, "0")}:00`}
-                      </div>
-                      <div className="flex-1 min-h-[40px]">
-                        {appointments
-                          .filter((apt) => parseInt(apt.time.split(":")[0]) === hour)
-                          .map((apt) => (
+                  {hours.map((hour) => {
+                    const hourAppointments = getAppointmentsForHour(selectedDate, hour);
+                    return (
+                      <div key={hour} className="flex gap-4 py-3 border-b border-border last:border-0">
+                        <div className="w-16 text-sm text-muted-foreground shrink-0">
+                          {`${hour.toString().padStart(2, "0")}:00`}
+                        </div>
+                        <div className="flex-1 min-h-[40px] space-y-2">
+                          {hourAppointments.map((apt) => (
                             <div
                               key={apt.id}
+                              onClick={() => handleAppointmentClick(apt)}
                               className="p-3 rounded-lg bg-primary/5 border border-primary/20 hover:bg-primary/10 cursor-pointer transition-colors"
                             >
                               <div className="flex items-center justify-between">
@@ -307,7 +367,7 @@ const Agenda = () => {
                                     <Clock className="h-4 w-4" />
                                     {apt.time} - {apt.duration}min
                                   </div>
-                                  <span className="font-medium">{apt.patientName}</span>
+                                  <span className="font-medium">{apt.patient_name}</span>
                                 </div>
                                 {getStatusBadge(apt.status)}
                               </div>
@@ -316,9 +376,10 @@ const Agenda = () => {
                               </p>
                             </div>
                           ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>
@@ -371,25 +432,26 @@ const Agenda = () => {
                       <div key={`hour-${hour}`} className="bg-background p-2 text-sm text-muted-foreground border-t border-border">
                         {`${hour.toString().padStart(2, "0")}:00`}
                       </div>
-                      {getWeekDays().map((day, dayIndex) => (
-                        <div
-                          key={`${hour}-${dayIndex}`}
-                          className="bg-background p-1 min-h-[60px] border-t border-border hover:bg-muted/50 cursor-pointer transition-colors"
-                        >
-                          {appointments
-                            .filter((apt) => parseInt(apt.time.split(":")[0]) === hour)
-                            .slice(0, 1)
-                            .map((apt) => (
+                      {getWeekDays().map((day, dayIndex) => {
+                        const dayAppointments = getAppointmentsForHour(day, hour);
+                        return (
+                          <div
+                            key={`${hour}-${dayIndex}`}
+                            className="bg-background p-1 min-h-[60px] border-t border-border hover:bg-muted/50 cursor-pointer transition-colors"
+                          >
+                            {dayAppointments.map((apt) => (
                               <div
                                 key={apt.id}
-                                className="bg-primary/10 border-l-2 border-primary p-1 rounded text-xs"
+                                onClick={() => handleAppointmentClick(apt)}
+                                className="bg-primary/10 border-l-2 border-primary p-1 rounded text-xs cursor-pointer hover:bg-primary/20 transition-colors"
                               >
-                                <p className="font-medium truncate">{apt.patientName}</p>
+                                <p className="font-medium truncate">{apt.patient_name}</p>
                                 <p className="text-muted-foreground truncate">{apt.treatment}</p>
                               </div>
                             ))}
-                        </div>
-                      ))}
+                          </div>
+                        );
+                      })}
                     </>
                   ))}
                 </div>
@@ -414,35 +476,52 @@ const Agenda = () => {
                     {day}
                   </div>
                 ))}
-                {generateMonthDays().map((day, i) => (
-                  <div
-                    key={i}
-                    onClick={() => {
-                      setSelectedDate(day.date);
-                      setView("day");
-                    }}
-                    className={cn(
-                      "min-h-24 p-2 border rounded-lg text-sm cursor-pointer transition-colors hover:bg-muted/50",
-                      !day.isCurrentMonth && "bg-muted/20 text-muted-foreground",
-                      day.isToday && "ring-2 ring-primary ring-offset-2"
-                    )}
-                  >
-                    <span className={cn(
-                      "inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-medium",
-                      day.isToday && "bg-primary text-primary-foreground"
-                    )}>
-                      {day.dayNumber}
-                    </span>
-                    {/* Mock appointments indicator */}
-                    {day.isCurrentMonth && day.dayNumber <= 4 && (
-                      <div className="mt-1 space-y-1">
-                        <div className="bg-primary/10 border-l-2 border-primary px-1 py-0.5 rounded text-xs truncate">
-                          {appointments[day.dayNumber - 1]?.patientName || "Cita"}
+                {generateMonthDays().map((day, i) => {
+                  const dayAppointments = getAppointmentsForDate(day.date);
+                  return (
+                    <div
+                      key={i}
+                      onClick={() => {
+                        setSelectedDate(day.date);
+                        setView("day");
+                      }}
+                      className={cn(
+                        "min-h-24 p-2 border rounded-lg text-sm cursor-pointer transition-colors hover:bg-muted/50",
+                        !day.isCurrentMonth && "bg-muted/20 text-muted-foreground",
+                        day.isToday && "ring-2 ring-primary ring-offset-2"
+                      )}
+                    >
+                      <span className={cn(
+                        "inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-medium",
+                        day.isToday && "bg-primary text-primary-foreground"
+                      )}>
+                        {day.dayNumber}
+                      </span>
+                      {/* Show appointments for this day */}
+                      {day.isCurrentMonth && dayAppointments.length > 0 && (
+                        <div className="mt-1 space-y-1">
+                          {dayAppointments.slice(0, 2).map((apt) => (
+                            <div
+                              key={apt.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleAppointmentClick(apt);
+                              }}
+                              className="bg-primary/10 border-l-2 border-primary px-1 py-0.5 rounded text-xs truncate cursor-pointer hover:bg-primary/20"
+                            >
+                              {apt.patient_name}
+                            </div>
+                          ))}
+                          {dayAppointments.length > 2 && (
+                            <p className="text-xs text-muted-foreground px-1">
+                              +{dayAppointments.length - 2} más
+                            </p>
+                          )}
                         </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </CardContent>
           </Card>
@@ -451,32 +530,39 @@ const Agenda = () => {
         {/* Today's Appointments List */}
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Citas del Día</CardTitle>
+            <CardTitle className="text-lg">
+              Citas del {selectedDate.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              {appointments.map((apt) => (
-                <div
-                  key={apt.id}
-                  className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors cursor-pointer"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="text-center min-w-[60px]">
-                      <p className="text-lg font-bold">{apt.time}</p>
-                      <p className="text-xs text-muted-foreground">{apt.duration} min</p>
+            {todayAppointments.length === 0 ? (
+              <p className="text-muted-foreground text-center py-8">No hay citas para este día</p>
+            ) : (
+              <div className="space-y-3">
+                {todayAppointments.map((apt) => (
+                  <div
+                    key={apt.id}
+                    onClick={() => handleAppointmentClick(apt)}
+                    className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-muted/50 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="text-center min-w-[60px]">
+                        <p className="text-lg font-bold">{apt.time}</p>
+                        <p className="text-xs text-muted-foreground">{apt.duration} min</p>
+                      </div>
+                      <div className="h-10 w-px bg-border" />
+                      <div>
+                        <p className="font-medium">{apt.patient_name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {apt.treatment} • {apt.dentist}
+                        </p>
+                      </div>
                     </div>
-                    <div className="h-10 w-px bg-border" />
-                    <div>
-                      <p className="font-medium">{apt.patientName}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {apt.treatment} • {apt.dentist}
-                      </p>
-                    </div>
+                    {getStatusBadge(apt.status)}
                   </div>
-                  {getStatusBadge(apt.status)}
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
         
