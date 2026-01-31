@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Eye, EyeOff, Copy, Loader2, CheckCircle2, XCircle } from "lucide-react";
+import { Copy, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,10 +10,16 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-interface WhatsAppConfig {
+// Helper to mask secrets - only show last 4 chars
+const maskSecret = (secret: string | null | undefined): string => {
+  if (!secret || secret.length < 8) return "";
+  return "••••••••" + secret.slice(-4);
+};
+
+interface WhatsAppFormState {
   phone_number_id: string;
   business_account_id: string;
-  access_token: string;
+  access_token: string; // New value being entered
   verify_token: string;
   is_connected: boolean;
   last_verified_at: string | null;
@@ -22,9 +28,9 @@ interface WhatsAppConfig {
 const IntegrationsWhatsApp = () => {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
-  const [showToken, setShowToken] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
-  const [config, setConfig] = useState<WhatsAppConfig>({
+  const [accessTokenHint, setAccessTokenHint] = useState("");
+  const [config, setConfig] = useState<WhatsAppFormState>({
     phone_number_id: "",
     business_account_id: "",
     access_token: "",
@@ -39,7 +45,15 @@ const IntegrationsWhatsApp = () => {
       if (!profile?.clinic_id) return null;
       const { data, error } = await supabase
         .from("whatsapp_config")
-        .select("*")
+        .select(`
+          id,
+          phone_number_id,
+          business_account_id,
+          access_token,
+          verify_token,
+          is_connected,
+          last_verified_at
+        `)
         .eq("clinic_id", profile.clinic_id)
         .maybeSingle();
       if (error) throw error;
@@ -53,43 +67,62 @@ const IntegrationsWhatsApp = () => {
       setConfig({
         phone_number_id: existingConfig.phone_number_id || "",
         business_account_id: existingConfig.business_account_id || "",
-        access_token: existingConfig.access_token || "",
+        access_token: "", // Never load actual secret into state
         verify_token: existingConfig.verify_token || config.verify_token,
         is_connected: existingConfig.is_connected || false,
         last_verified_at: existingConfig.last_verified_at,
       });
+      // Generate masked hint from existing secret
+      setAccessTokenHint(maskSecret(existingConfig.access_token));
     }
   }, [existingConfig]);
 
   const saveMutation = useMutation({
-    mutationFn: async (data: WhatsAppConfig) => {
+    mutationFn: async (data: WhatsAppFormState) => {
       if (!profile?.clinic_id) throw new Error("No clinic found");
 
-      const payload = {
-        clinic_id: profile.clinic_id,
-        phone_number_id: data.phone_number_id,
-        business_account_id: data.business_account_id,
-        access_token: data.access_token,
-        verify_token: data.verify_token,
-        is_connected: data.is_connected,
-        last_verified_at: data.last_verified_at,
-      };
-
       if (existingConfig) {
+        // For updates, build a partial payload with only changed fields
+        const updatePayload: Record<string, unknown> = {
+          phone_number_id: data.phone_number_id,
+          business_account_id: data.business_account_id,
+          verify_token: data.verify_token,
+          is_connected: data.is_connected,
+          last_verified_at: data.last_verified_at,
+        };
+        
+        // Only update access_token if new value was provided
+        if (data.access_token) {
+          updatePayload.access_token = data.access_token;
+        }
+
         const { error } = await supabase
           .from("whatsapp_config")
-          .update(payload)
+          .update(updatePayload)
           .eq("id", existingConfig.id);
         if (error) throw error;
       } else {
+        // For inserts, use properly typed payload
+        const insertPayload = {
+          clinic_id: profile.clinic_id,
+          phone_number_id: data.phone_number_id,
+          business_account_id: data.business_account_id,
+          access_token: data.access_token || null,
+          verify_token: data.verify_token,
+          is_connected: data.is_connected,
+          last_verified_at: data.last_verified_at,
+        };
+
         const { error } = await supabase
           .from("whatsapp_config")
-          .insert(payload);
+          .insert(insertPayload);
         if (error) throw error;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["whatsapp-config"] });
+      // Clear the secret input field after save
+      setConfig(prev => ({ ...prev, access_token: "" }));
       toast.success("Configuración guardada correctamente");
     },
     onError: (error) => {
@@ -98,8 +131,16 @@ const IntegrationsWhatsApp = () => {
   });
 
   const testConnection = async () => {
-    if (!config.phone_number_id || !config.access_token) {
+    // For testing, we need either a new token or an existing configured token
+    const hasToken = config.access_token || accessTokenHint;
+    if (!config.phone_number_id || !hasToken) {
       toast.error("Ingresa Phone Number ID y Access Token para probar");
+      return;
+    }
+    
+    // If user hasn't entered a new token but has one configured, inform them
+    if (!config.access_token && accessTokenHint) {
+      toast.error("Para probar la conexión, ingresa el Access Token nuevamente");
       return;
     }
 
@@ -240,31 +281,32 @@ const IntegrationsWhatsApp = () => {
             {/* Access Token */}
             <div className="space-y-2">
               <Label htmlFor="accessToken">Access Token *</Label>
-              <div className="relative">
-                <Input
-                  id="accessToken"
-                  type={showToken ? "text" : "password"}
-                  placeholder="EAABx..."
-                  value={config.access_token}
-                  onChange={(e) =>
-                    setConfig({ ...config, access_token: e.target.value })
-                  }
-                  className="pr-10"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
-                  onClick={() => setShowToken(!showToken)}
-                >
-                  {showToken ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
+              {accessTokenHint && !config.access_token && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                  <Badge className="font-mono bg-muted text-muted-foreground">
+                    {accessTokenHint}
+                  </Badge>
+                  <span className="text-green-600">✓ Configurado</span>
+                </div>
+              )}
+              <Input
+                id="accessToken"
+                type="password"
+                placeholder={
+                  accessTokenHint 
+                    ? "Ingresa nuevo valor para reemplazar..." 
+                    : "EAABx..."
+                }
+                value={config.access_token}
+                onChange={(e) =>
+                  setConfig({ ...config, access_token: e.target.value })
+                }
+              />
+              {accessTokenHint && (
+                <p className="text-xs text-muted-foreground">
+                  Deja vacío para mantener el valor actual
+                </p>
+              )}
               <p className="text-sm text-muted-foreground">
                 Genera un token permanente en Meta for Developers
               </p>
