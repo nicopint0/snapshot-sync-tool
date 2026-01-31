@@ -16,6 +16,7 @@ import {
   CreditCard,
   Stethoscope,
   Printer,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -34,6 +35,8 @@ import AppLayout from "@/components/layout/AppLayout";
 import OdontogramVisual from "@/components/clinical/OdontogramVisual";
 import PatientHeader from "@/components/print/PatientHeader";
 import EditPatientForm from "@/components/patients/EditPatientForm";
+import NewBudgetDialog from "@/components/budgets/NewBudgetDialog";
+import NewTreatmentDialog from "@/components/treatments/NewTreatmentDialog";
 import { usePrint } from "@/hooks/usePrint";
 import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/integrations/supabase/types";
@@ -80,6 +83,8 @@ const PatientDetail = () => {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(location.pathname.endsWith("/edit"));
   const [activeTab, setActiveTab] = useState("summary");
+  const [showBudgetDialog, setShowBudgetDialog] = useState(false);
+  const [showTreatmentDialog, setShowTreatmentDialog] = useState(false);
   
   // Refs for printing
   const odontogramRef = useRef<HTMLDivElement>(null);
@@ -477,11 +482,15 @@ const PatientDetail = () => {
             <div ref={printTreatmentsRef}>
               <PatientHeader patient={patient} />
               <Card className="print:border print:shadow-none">
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="text-lg flex items-center gap-2">
                     <Stethoscope className="h-5 w-5" />
                     Tratamientos
                   </CardTitle>
+                  <Button size="sm" onClick={() => setShowTreatmentDialog(true)} className="print:hidden">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nuevo Tratamiento
+                  </Button>
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground">No hay tratamientos registrados para este paciente</p>
@@ -494,11 +503,15 @@ const PatientDetail = () => {
             <div ref={printBudgetsRef}>
               <PatientHeader patient={patient} />
               <Card className="print:border print:shadow-none">
-                <CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="text-lg flex items-center gap-2">
                     <FileText className="h-5 w-5" />
                     Presupuestos
                   </CardTitle>
+                  <Button size="sm" onClick={() => setShowBudgetDialog(true)} className="print:hidden">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nuevo Presupuesto
+                  </Button>
                 </CardHeader>
                 <CardContent>
                   <p className="text-muted-foreground">No hay presupuestos registrados para este paciente</p>
@@ -587,6 +600,16 @@ const PatientDetail = () => {
             <p className="text-sm text-muted-foreground">No hay presupuestos registrados</p>
           </div>
         </div>
+        {/* Dialogs */}
+        <NewBudgetDialog
+          open={showBudgetDialog}
+          onOpenChange={setShowBudgetDialog}
+          preselectedPatient={patient ? { id: patient.id, first_name: patient.first_name, last_name: patient.last_name } : null}
+        />
+        <NewTreatmentDialog
+          open={showTreatmentDialog}
+          onOpenChange={setShowTreatmentDialog}
+        />
       </motion.div>
     </AppLayout>
   );
