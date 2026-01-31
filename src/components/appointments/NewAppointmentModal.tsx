@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Search, CalendarIcon, Clock } from "lucide-react";
 import { format } from "date-fns";
@@ -59,9 +59,10 @@ interface Profile {
   last_name: string;
 }
 
-interface NewAppointmentModalProps {
+export interface NewAppointmentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  preselectedPatientId?: string;
 }
 
 interface AppointmentData {
@@ -74,7 +75,7 @@ interface AppointmentData {
   notes: string;
 }
 
-const NewAppointmentModal = ({ open, onOpenChange }: NewAppointmentModalProps) => {
+const NewAppointmentModal = ({ open, onOpenChange, preselectedPatientId }: NewAppointmentModalProps) => {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const [patientOpen, setPatientOpen] = useState(false);
@@ -116,6 +117,17 @@ const NewAppointmentModal = ({ open, onOpenChange }: NewAppointmentModalProps) =
     },
     enabled: !!profile?.clinic_id && open,
   });
+
+  // Set preselected patient when dialog opens
+  useEffect(() => {
+    if (open && preselectedPatientId && patients.length > 0) {
+      const patient = patients.find(p => p.id === preselectedPatientId);
+      if (patient) {
+        setSelectedPatient(patient);
+        setAppointment(prev => ({ ...prev, patient_id: patient.id }));
+      }
+    }
+  }, [open, preselectedPatientId, patients]);
 
   // Fetch treatments
   const { data: treatments = [] } = useQuery({
