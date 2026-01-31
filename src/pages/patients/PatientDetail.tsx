@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -73,9 +73,11 @@ const PatientDetail = () => {
   const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isEditing, setIsEditing] = useState(location.pathname.endsWith("/edit"));
   const [activeTab, setActiveTab] = useState("summary");
   
   // Refs for printing
@@ -287,9 +289,16 @@ const PatientDetail = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
               
-              <Button size="sm">
+              <Button size="sm" onClick={() => {
+                setIsEditing(!isEditing);
+                if (!isEditing) {
+                  navigate(`/patients/${id}/edit`, { replace: true });
+                } else {
+                  navigate(`/patients/${id}`, { replace: true });
+                }
+              }}>
                 <Edit className="h-4 w-4 mr-2" />
-                Editar
+                {isEditing ? "Cancelar" : "Editar"}
               </Button>
             </div>
           </div>
