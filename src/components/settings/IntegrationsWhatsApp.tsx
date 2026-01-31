@@ -10,11 +10,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-// Helper to mask secrets - only show last 4 chars
-const maskSecret = (secret: string | null | undefined): string => {
-  if (!secret || secret.length < 8) return "";
-  return "••••••••" + secret.slice(-4);
-};
+// Note: maskSecret is no longer needed client-side as hints come from server
+// The function is kept for backwards compatibility but not used
 
 interface WhatsAppFormState {
   phone_number_id: string;
@@ -43,21 +40,11 @@ const IntegrationsWhatsApp = () => {
     queryKey: ["whatsapp-config", profile?.clinic_id],
     queryFn: async () => {
       if (!profile?.clinic_id) return null;
+      // Use secure RPC function that returns hints, not actual secrets
       const { data, error } = await supabase
-        .from("whatsapp_config")
-        .select(`
-          id,
-          phone_number_id,
-          business_account_id,
-          access_token,
-          verify_token,
-          is_connected,
-          last_verified_at
-        `)
-        .eq("clinic_id", profile.clinic_id)
-        .maybeSingle();
+        .rpc('get_whatsapp_config_safe', { p_clinic_id: profile.clinic_id });
       if (error) throw error;
-      return data;
+      return data?.[0] || null;
     },
     enabled: !!profile?.clinic_id,
   });
@@ -72,8 +59,8 @@ const IntegrationsWhatsApp = () => {
         is_connected: existingConfig.is_connected || false,
         last_verified_at: existingConfig.last_verified_at,
       });
-      // Generate masked hint from existing secret
-      setAccessTokenHint(maskSecret(existingConfig.access_token));
+      // Use hint from secure RPC (already masked on server)
+      setAccessTokenHint(existingConfig.access_token_hint || "");
     }
   }, [existingConfig]);
 
@@ -131,16 +118,9 @@ const IntegrationsWhatsApp = () => {
   });
 
   const testConnection = async () => {
-    // For testing, we need either a new token or an existing configured token
-    const hasToken = config.access_token || accessTokenHint;
-    if (!config.phone_number_id || !hasToken) {
+    // For testing, we need a new token (we can't use existing one as it's not exposed)
+    if (!config.phone_number_id || !config.access_token) {
       toast.error("Ingresa Phone Number ID y Access Token para probar");
-      return;
-    }
-    
-    // If user hasn't entered a new token but has one configured, inform them
-    if (!config.access_token && accessTokenHint) {
-      toast.error("Para probar la conexión, ingresa el Access Token nuevamente");
       return;
     }
 
@@ -153,16 +133,23 @@ const IntegrationsWhatsApp = () => {
 
     setIsTesting(true);
     try {
-      const response = await fetch(
-        `https://graph.facebook.com/v18.0/${encodeURIComponent(config.phone_number_id)}`,
-        {
-          headers: {
-            'Authorization': `Bearer ${config.access_token}`
-          }
+      // Use edge function to test connection - token never exposed to browser network
+      const { data: sessionData } = await supabase.auth.getSession();
+      const response = await supabase.functions.invoke('test-whatsapp-connection', {
+        body: {
+          phone_number_id: config.phone_number_id,
+          access_token: config.access_token
         }
-      );
+      });
       
-      if (response.ok) {
+      if (response.error) {
+        setConfig((prev) => ({ ...prev, is_connected: false }));
+        toast.error(`Error: ${response.error.message || "Conexión fallida"}`);
+        return;
+      }
+
+      const result = response.data;
+      if (result.success) {
         setConfig((prev) => ({
           ...prev,
           is_connected: true,
@@ -170,9 +157,8 @@ const IntegrationsWhatsApp = () => {
         }));
         toast.success("✓ Conexión exitosa con WhatsApp Business API");
       } else {
-        const error = await response.json();
         setConfig((prev) => ({ ...prev, is_connected: false }));
-        toast.error(`Error: ${error.error?.message || "Conexión fallida"}`);
+        toast.error(`Error: ${result.error || "Conexión fallida"}`);
       }
     } catch (error) {
       setConfig((prev) => ({ ...prev, is_connected: false }));
