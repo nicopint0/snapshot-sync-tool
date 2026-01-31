@@ -47,12 +47,18 @@ import AppLayout from "@/components/layout/AppLayout";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import NewAppointmentModal from "@/components/appointments/NewAppointmentModal";
+import NewBudgetDialog from "@/components/budgets/NewBudgetDialog";
+import { toast } from "@/hooks/use-toast";
 
 const Patients = () => {
   const { t } = useTranslation();
   const { profile } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [showAppointmentModal, setShowAppointmentModal] = useState(false);
+  const [showBudgetDialog, setShowBudgetDialog] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<{ id: string; first_name: string; last_name: string } | null>(null);
 
   const { data: patients = [], isLoading } = useQuery({
     queryKey: ['patients', profile?.clinic_id],
@@ -268,16 +274,30 @@ const Patients = () => {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                  <DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => {
+                                    setSelectedPatient({ id: patient.id, first_name: patient.first_name, last_name: patient.last_name });
+                                    setShowAppointmentModal(true);
+                                  }}>
                                     <Calendar className="mr-2 h-4 w-4" />
                                     {t("appointments.newAppointment")}
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => {
+                                    setSelectedPatient({ id: patient.id, first_name: patient.first_name, last_name: patient.last_name });
+                                    setShowBudgetDialog(true);
+                                  }}>
                                     <FileText className="mr-2 h-4 w-4" />
                                     {t("budgets.newBudget")}
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
-                                  <DropdownMenuItem className="text-destructive">
+                                  <DropdownMenuItem 
+                                    className="text-destructive"
+                                    onClick={() => {
+                                      toast({
+                                        title: "Función en desarrollo",
+                                        description: "La desactivación de pacientes estará disponible próximamente.",
+                                      });
+                                    }}
+                                  >
                                     <UserX className="mr-2 h-4 w-4" />
                                     Desactivar
                                   </DropdownMenuItem>
@@ -313,6 +333,18 @@ const Patients = () => {
           </Card>
         </motion.div>
       </motion.div>
+
+      {/* Modals */}
+      <NewAppointmentModal 
+        open={showAppointmentModal} 
+        onOpenChange={setShowAppointmentModal}
+        preselectedPatientId={selectedPatient?.id}
+      />
+      <NewBudgetDialog 
+        open={showBudgetDialog} 
+        onOpenChange={setShowBudgetDialog}
+        preselectedPatient={selectedPatient}
+      />
     </AppLayout>
   );
 };
