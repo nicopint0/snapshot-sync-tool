@@ -33,6 +33,7 @@ import { toast } from "sonner";
 import AppLayout from "@/components/layout/AppLayout";
 import OdontogramVisual from "@/components/clinical/OdontogramVisual";
 import PatientHeader from "@/components/print/PatientHeader";
+import EditPatientForm from "@/components/patients/EditPatientForm";
 import { usePrint } from "@/hooks/usePrint";
 import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/integrations/supabase/types";
@@ -304,20 +305,34 @@ const PatientDetail = () => {
           </div>
         </div>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3 md:grid-cols-6 lg:w-auto lg:inline-grid">
-            <TabsTrigger value="summary">Resumen</TabsTrigger>
-            <TabsTrigger value="odontogram">Odontograma</TabsTrigger>
-            <TabsTrigger value="treatments">Tratamientos</TabsTrigger>
-            <TabsTrigger value="budgets">Presupuestos</TabsTrigger>
-            <TabsTrigger value="payments">Pagos</TabsTrigger>
-            <TabsTrigger value="documents">Documentos</TabsTrigger>
-          </TabsList>
+        {/* Edit Form or Tabs */}
+        {isEditing ? (
+          <EditPatientForm
+            patient={patient}
+            onSave={(updatedPatient) => {
+              setPatient(updatedPatient);
+              setIsEditing(false);
+              navigate(`/patients/${id}`, { replace: true });
+            }}
+            onCancel={() => {
+              setIsEditing(false);
+              navigate(`/patients/${id}`, { replace: true });
+            }}
+          />
+        ) : (
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+            <TabsList className="grid w-full grid-cols-3 md:grid-cols-6 lg:w-auto lg:inline-grid">
+              <TabsTrigger value="summary">Resumen</TabsTrigger>
+              <TabsTrigger value="odontogram">Odontograma</TabsTrigger>
+              <TabsTrigger value="treatments">Tratamientos</TabsTrigger>
+              <TabsTrigger value="budgets">Presupuestos</TabsTrigger>
+              <TabsTrigger value="payments">Pagos</TabsTrigger>
+              <TabsTrigger value="documents">Documentos</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="summary" className="space-y-6">
-            <div ref={printSummaryRef}>
-              <PatientHeader patient={patient} />
+            <TabsContent value="summary" className="space-y-6">
+              <div ref={printSummaryRef}>
+                <PatientHeader patient={patient} />
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:grid-cols-2 print:gap-4">
                 {/* Contact Info */}
                 <Card className="print:border print:shadow-none">
@@ -518,9 +533,9 @@ const PatientDetail = () => {
                 <p className="text-muted-foreground">No hay documentos subidos para este paciente</p>
               </CardContent>
             </Card>
-          </TabsContent>
-        </Tabs>
-
+            </TabsContent>
+          </Tabs>
+        )}
         {/* Hidden full report container for printing all sections */}
         <div ref={printFullRef} className="hidden">
           <PatientHeader patient={patient} />
