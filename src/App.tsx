@@ -7,9 +7,14 @@ import { AuthProvider } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import "@/lib/i18n";
 
-// Pages
+// Landing Pages
+import LandingPage from "./pages/landing";
+
+// Auth Pages
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
+
+// App Pages
 import Dashboard from "./pages/Dashboard";
 import Patients from "./pages/Patients";
 import NewPatient from "./pages/patients/NewPatient";
@@ -34,14 +39,14 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            {/* Redirect root to dashboard */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            {/* Public landing page */}
+            <Route path="/" element={<LandingPage />} />
             
             {/* Auth routes */}
             <Route path="/auth/login" element={<Login />} />
             <Route path="/auth/register" element={<Register />} />
             
-            {/* Protected routes */}
+            {/* Protected routes - App */}
             <Route path="/dashboard" element={
               <ProtectedRoute><Dashboard /></ProtectedRoute>
             } />
