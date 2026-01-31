@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { motion } from "framer-motion";
 import LanguageSelector from "@/components/common/LanguageSelector";
+import Logo from "@/components/Logo";
 
 interface AuthLayoutProps {
   children: ReactNode;
@@ -25,21 +26,15 @@ const AuthLayout = ({ children }: AuthLayoutProps) => {
               <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-white/10 backdrop-blur-sm mb-6">
                 <svg
                   viewBox="0 0 24 24"
-                  fill="none"
+                  fill="currentColor"
                   className="w-12 h-12"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M12 3c-1.5 0-3 1-3.5 2.5C8 7 6.5 8 5 8c-2 0-3 2-2.5 4 .5 2 2 3.5 4 4.5 1 .5 2 2 2.5 4.5.3 1.5 1.5 2.5 3 2.5s2.7-1 3-2.5c.5-2.5 1.5-4 2.5-4.5 2-1 3.5-2.5 4-4.5.5-2-.5-4-2.5-4-1.5 0-3-1-3.5-2.5C16.5 4 15 3 12 3z"
-                  />
+                  <path d="M12 2C9.5 2 7.5 3.5 7 6c-.5 2.5.5 4.5 1 7 .5 2.5 0 5 0 7 0 1 1 2 2 2s2-1 2-3c0 2 1 3 2 3s2-1 2-2c0-2-.5-4.5 0-7s1.5-4.5 1-7c-.5-2.5-2.5-4-5-4z" />
                 </svg>
               </div>
-              <h1 className="text-4xl font-bold mb-4">DentalCRM Pro</h1>
+              <h1 className="text-4xl font-bold mb-4">Denty.io</h1>
               <p className="text-xl text-white/80">
-                Tu consultorio dental, simplificado con IA
+                Tu clínica, más inteligente
               </p>
             </div>
 
@@ -49,7 +44,7 @@ const AuthLayout = ({ children }: AuthLayoutProps) => {
                 "Gestiona citas y pacientes fácilmente",
                 "Automatiza recordatorios por WhatsApp",
                 "Genera presupuestos profesionales",
-                "Accede desde cualquier dispositivo",
+                "Potenciado con inteligencia artificial",
               ].map((feature, index) => (
                 <motion.div
                   key={index}
@@ -90,24 +85,7 @@ const AuthLayout = ({ children }: AuthLayoutProps) => {
 
         {/* Mobile logo */}
         <div className="lg:hidden pt-8 pb-4 px-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                className="w-6 h-6 text-primary-foreground"
-                stroke="currentColor"
-                strokeWidth="1.5"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M12 3c-1.5 0-3 1-3.5 2.5C8 7 6.5 8 5 8c-2 0-3 2-2.5 4 .5 2 2 3.5 4 4.5 1 .5 2 2 2.5 4.5.3 1.5 1.5 2.5 3 2.5s2.7-1 3-2.5c.5-2.5 1.5-4 2.5-4.5 2-1 3.5-2.5 4-4.5.5-2-.5-4-2.5-4-1.5 0-3-1-3.5-2.5C16.5 4 15 3 12 3z"
-                />
-              </svg>
-            </div>
-            <span className="text-xl font-bold text-foreground">DentalCRM Pro</span>
-          </div>
+          <Logo size="md" />
         </div>
 
         {/* Form container */}

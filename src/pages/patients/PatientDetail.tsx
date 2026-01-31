@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -14,6 +15,7 @@ import {
   FileText,
   CreditCard,
   Stethoscope,
+  Save,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,8 +23,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { toast } from "sonner";
 import AppLayout from "@/components/layout/AppLayout";
+import Odontogram from "@/components/clinical/Odontogram";
 import { supabase } from "@/integrations/supabase/client";
+import { Database } from "@/integrations/supabase/types";
 
 interface Patient {
   id: string;
@@ -46,14 +51,26 @@ interface Patient {
   created_at: string;
 }
 
+type ToothCondition = Database["public"]["Enums"]["tooth_condition"];
+
+interface OdontogramData {
+  id: string;
+  tooth_number: number;
+  condition: ToothCondition;
+  notes: string | null;
+  surfaces: string[] | null;
+}
+
 const PatientDetail = () => {
   const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("summary");
 
+  // Fetch patient
   useEffect(() => {
     const fetchPatient = async () => {
       if (!id) return;
@@ -76,6 +93,54 @@ const PatientDetail = () => {
 
     fetchPatient();
   }, [id]);
+
+  // Fetch odontogram data
+  const { data: odontogramData = [] } = useQuery({
+    queryKey: ["odontogram", id],
+    queryFn: async () => {
+      if (!id) return [];
+      const { data, error } = await supabase
+        .from("odontograms")
+        .select("*")
+        .eq("patient_id", id);
+      if (error) throw error;
+      return data as OdontogramData[];
+    },
+    enabled: !!id,
+  });
+
+  // Save odontogram mutation
+  const saveOdontogramMutation = useMutation({
+    mutationFn: async (teethData: { tooth_number: number; condition: string; notes?: string }[]) => {
+      if (!id) throw new Error("No patient ID");
+
+      // Upsert each tooth
+      for (const tooth of teethData) {
+        const { error } = await supabase
+          .from("odontograms")
+          .upsert({
+            patient_id: id,
+            tooth_number: tooth.tooth_number,
+            condition: tooth.condition as ToothCondition,
+            notes: tooth.notes || null,
+          }, {
+            onConflict: "patient_id,tooth_number",
+          });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["odontogram", id] });
+      toast.success("Odontograma guardado");
+    },
+    onError: (error) => {
+      toast.error("Error al guardar: " + error.message);
+    },
+  });
+
+  const handleSaveOdontogram = (teethData: { tooth_number: number; condition: string; notes?: string }[]) => {
+    saveOdontogramMutation.mutate(teethData);
+  };
 
   if (loading) {
     return (
@@ -302,17 +367,16 @@ const PatientDetail = () => {
           </TabsContent>
 
           <TabsContent value="odontogram">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Stethoscope className="h-5 w-5" />
-                  Odontograma
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="flex items-center justify-center h-64">
-                <p className="text-muted-foreground">El odontograma interactivo estará disponible próximamente</p>
-              </CardContent>
-            </Card>
+            <Odontogram
+              patientId={id}
+              data={odontogramData.map(o => ({
+                tooth_number: o.tooth_number,
+                condition: o.condition as any,
+                notes: o.notes || undefined,
+                surfaces: o.surfaces || undefined,
+              }))}
+              onSave={handleSaveOdontogram}
+            />
           </TabsContent>
 
           <TabsContent value="treatments">
