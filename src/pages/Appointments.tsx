@@ -13,12 +13,14 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AppLayout from "@/components/layout/AppLayout";
+import NewAppointmentModal from "@/components/appointments/NewAppointmentModal";
 import { cn } from "@/lib/utils";
 
 const Appointments = () => {
   const { t } = useTranslation();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<"day" | "week" | "month">("day");
+  const [showNewAppointment, setShowNewAppointment] = useState(false);
 
   // Generate mock appointments with actual dates based on today
   const today = new Date();
@@ -280,11 +282,17 @@ const Appointments = () => {
             </h1>
             <p className="text-muted-foreground mt-1 capitalize">{formatDateHeader()}</p>
           </div>
-          <Button>
+          <Button onClick={() => setShowNewAppointment(true)}>
             <Plus className="h-4 w-4 mr-2" />
             {t("appointments.newAppointment")}
           </Button>
         </motion.div>
+
+        {/* New Appointment Modal */}
+        <NewAppointmentModal
+          open={showNewAppointment}
+          onOpenChange={setShowNewAppointment}
+        />
 
         {/* Calendar controls */}
         <motion.div variants={itemVariants}>
