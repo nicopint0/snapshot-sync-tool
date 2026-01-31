@@ -753,7 +753,40 @@ export type Database = {
       }
     }
     Functions: {
+      get_payment_config_safe: {
+        Args: { p_clinic_id: string }
+        Returns: {
+          default_currency: string
+          has_mp_access_token: boolean
+          has_stripe_secret: boolean
+          has_webhook_secret: boolean
+          id: string
+          mp_access_token_hint: string
+          mp_country: string
+          mp_enabled: boolean
+          mp_public_key: string
+          stripe_enabled: boolean
+          stripe_mode: string
+          stripe_publishable_key: string
+          stripe_secret_key_hint: string
+          stripe_webhook_secret_hint: string
+        }[]
+      }
+      get_secret_hint: { Args: { secret: string }; Returns: string }
       get_user_clinic_id: { Args: { _user_id: string }; Returns: string }
+      get_whatsapp_config_safe: {
+        Args: { p_clinic_id: string }
+        Returns: {
+          access_token_hint: string
+          business_account_id: string
+          has_access_token: boolean
+          id: string
+          is_connected: boolean
+          last_verified_at: string
+          phone_number_id: string
+          verify_token: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

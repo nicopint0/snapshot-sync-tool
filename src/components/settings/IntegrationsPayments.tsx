@@ -25,11 +25,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-// Helper to mask secrets - only show last 4 chars
-const maskSecret = (secret: string | null | undefined): string => {
-  if (!secret || secret.length < 8) return "";
-  return "••••••••" + secret.slice(-4);
-};
+// Note: maskSecret is no longer needed client-side as hints come from server
+// The function is kept for backwards compatibility but not used
 
 // Config for form state (new values being entered)
 interface PaymentFormState {
@@ -75,31 +72,16 @@ const IntegrationsPayments = () => {
     mp_access_token_hint: "",
   });
 
-  // Fetch only non-sensitive fields from the database
+  // Fetch config using secure RPC that returns hints instead of actual secrets
   const { data: existingConfig, isLoading } = useQuery({
     queryKey: ["payment-config", profile?.clinic_id],
     queryFn: async () => {
       if (!profile?.clinic_id) return null;
-      // Only select non-sensitive fields + secrets for masking hints
+      // Use secure RPC function that returns hints, not actual secrets
       const { data, error } = await supabase
-        .from("payment_config")
-        .select(`
-          id,
-          stripe_enabled,
-          stripe_mode,
-          stripe_publishable_key,
-          stripe_secret_key,
-          stripe_webhook_secret,
-          mp_enabled,
-          mp_public_key,
-          mp_access_token,
-          mp_country,
-          default_currency
-        `)
-        .eq("clinic_id", profile.clinic_id)
-        .maybeSingle();
+        .rpc('get_payment_config_safe', { p_clinic_id: profile.clinic_id });
       if (error) throw error;
-      return data;
+      return data?.[0] || null;
     },
     enabled: !!profile?.clinic_id,
   });
@@ -120,11 +102,11 @@ const IntegrationsPayments = () => {
         default_currency: existingConfig.default_currency || "USD",
       });
       
-      // Generate masked hints from existing secrets
+      // Use hints from secure RPC (already masked on server)
       setSecretHints({
-        stripe_secret_key_hint: maskSecret(existingConfig.stripe_secret_key),
-        stripe_webhook_secret_hint: maskSecret(existingConfig.stripe_webhook_secret),
-        mp_access_token_hint: maskSecret(existingConfig.mp_access_token),
+        stripe_secret_key_hint: existingConfig.stripe_secret_key_hint || "",
+        stripe_webhook_secret_hint: existingConfig.stripe_webhook_secret_hint || "",
+        mp_access_token_hint: existingConfig.mp_access_token_hint || "",
       });
     }
   }, [existingConfig]);
