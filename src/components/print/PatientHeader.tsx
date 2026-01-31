@@ -10,10 +10,11 @@ interface PatientHeaderProps {
     gender?: string | null;
   };
   clinicName?: string;
+  professionalName?: string;
 }
 
 const PatientHeader = forwardRef<HTMLDivElement, PatientHeaderProps>(
-  ({ patient, clinicName = "DentalCRM Pro" }, ref) => {
+  ({ patient, clinicName = "DentalCRM Pro", professionalName }, ref) => {
     const fullName = `${patient.first_name} ${patient.last_name}`;
     const age = patient.birth_date 
       ? Math.floor((new Date().getTime() - new Date(patient.birth_date).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
@@ -24,7 +25,18 @@ const PatientHeader = forwardRef<HTMLDivElement, PatientHeaderProps>(
         <div className="flex justify-between items-start">
           <div>
             <h1 className="text-xl font-bold text-primary">{clinicName}</h1>
-            <p className="text-xs text-muted-foreground">Fecha de impresión: {new Date().toLocaleDateString("es-ES")}</p>
+            {professionalName && (
+              <p className="text-sm font-medium">{professionalName}</p>
+            )}
+            <p className="text-xs text-muted-foreground mt-1">
+              Fecha de impresión: {new Date().toLocaleDateString("es-ES", {
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit"
+              })}
+            </p>
           </div>
           <div className="text-right">
             <h2 className="text-lg font-semibold">{fullName}</h2>
