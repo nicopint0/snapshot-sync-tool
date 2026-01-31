@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, Search, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -60,17 +60,25 @@ interface BudgetItem {
 interface NewBudgetDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  preselectedPatient?: Patient | null;
 }
 
-const NewBudgetDialog = ({ open, onOpenChange }: NewBudgetDialogProps) => {
+const NewBudgetDialog = ({ open, onOpenChange, preselectedPatient }: NewBudgetDialogProps) => {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
   const [patientOpen, setPatientOpen] = useState(false);
   const [patientSearch, setPatientSearch] = useState("");
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(preselectedPatient || null);
   const [items, setItems] = useState<BudgetItem[]>([]);
   const [notes, setNotes] = useState("");
   const [selectedTreatment, setSelectedTreatment] = useState("");
+
+  // Update selected patient when preselectedPatient changes or dialog opens
+  useEffect(() => {
+    if (open && preselectedPatient) {
+      setSelectedPatient(preselectedPatient);
+    }
+  }, [open, preselectedPatient]);
 
   // Fetch patients
   const { data: patients = [] } = useQuery({
