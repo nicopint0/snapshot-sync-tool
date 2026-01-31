@@ -1,8 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  Eye,
-  EyeOff,
   Copy,
   Loader2,
   AlertTriangle,
@@ -27,25 +25,37 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
-interface PaymentConfig {
+// Helper to mask secrets - only show last 4 chars
+const maskSecret = (secret: string | null | undefined): string => {
+  if (!secret || secret.length < 8) return "";
+  return "••••••••" + secret.slice(-4);
+};
+
+// Config for form state (new values being entered)
+interface PaymentFormState {
   stripe_enabled: boolean;
   stripe_mode: "test" | "live";
   stripe_publishable_key: string;
-  stripe_secret_key: string;
-  stripe_webhook_secret: string;
+  stripe_secret_key: string; // New value being entered
+  stripe_webhook_secret: string; // New value being entered
   mp_enabled: boolean;
   mp_public_key: string;
-  mp_access_token: string;
+  mp_access_token: string; // New value being entered
   mp_country: string;
   default_currency: string;
+}
+
+// Hints for displaying masked secrets (already configured)
+interface SecretHints {
+  stripe_secret_key_hint: string;
+  stripe_webhook_secret_hint: string;
+  mp_access_token_hint: string;
 }
 
 const IntegrationsPayments = () => {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
-  const [showStripeSecret, setShowStripeSecret] = useState(false);
-  const [showMPToken, setShowMPToken] = useState(false);
-  const [config, setConfig] = useState<PaymentConfig>({
+  const [config, setConfig] = useState<PaymentFormState>({
     stripe_enabled: false,
     stripe_mode: "test",
     stripe_publishable_key: "",
@@ -57,14 +67,35 @@ const IntegrationsPayments = () => {
     mp_country: "",
     default_currency: "USD",
   });
+  
+  // Store masked hints separately - these are derived from existing secrets
+  const [secretHints, setSecretHints] = useState<SecretHints>({
+    stripe_secret_key_hint: "",
+    stripe_webhook_secret_hint: "",
+    mp_access_token_hint: "",
+  });
 
+  // Fetch only non-sensitive fields from the database
   const { data: existingConfig, isLoading } = useQuery({
     queryKey: ["payment-config", profile?.clinic_id],
     queryFn: async () => {
       if (!profile?.clinic_id) return null;
+      // Only select non-sensitive fields + secrets for masking hints
       const { data, error } = await supabase
         .from("payment_config")
-        .select("*")
+        .select(`
+          id,
+          stripe_enabled,
+          stripe_mode,
+          stripe_publishable_key,
+          stripe_secret_key,
+          stripe_webhook_secret,
+          mp_enabled,
+          mp_public_key,
+          mp_access_token,
+          mp_country,
+          default_currency
+        `)
         .eq("clinic_id", profile.clinic_id)
         .maybeSingle();
       if (error) throw error;
@@ -75,45 +106,92 @@ const IntegrationsPayments = () => {
 
   useEffect(() => {
     if (existingConfig) {
+      // Set non-sensitive values and public keys directly
       setConfig({
         stripe_enabled: existingConfig.stripe_enabled || false,
         stripe_mode: (existingConfig.stripe_mode as "test" | "live") || "test",
         stripe_publishable_key: existingConfig.stripe_publishable_key || "",
-        stripe_secret_key: existingConfig.stripe_secret_key || "",
-        stripe_webhook_secret: existingConfig.stripe_webhook_secret || "",
+        stripe_secret_key: "", // Never load actual secret into state
+        stripe_webhook_secret: "", // Never load actual secret into state
         mp_enabled: existingConfig.mp_enabled || false,
         mp_public_key: existingConfig.mp_public_key || "",
-        mp_access_token: existingConfig.mp_access_token || "",
+        mp_access_token: "", // Never load actual secret into state
         mp_country: existingConfig.mp_country || "",
         default_currency: existingConfig.default_currency || "USD",
+      });
+      
+      // Generate masked hints from existing secrets
+      setSecretHints({
+        stripe_secret_key_hint: maskSecret(existingConfig.stripe_secret_key),
+        stripe_webhook_secret_hint: maskSecret(existingConfig.stripe_webhook_secret),
+        mp_access_token_hint: maskSecret(existingConfig.mp_access_token),
       });
     }
   }, [existingConfig]);
 
   const saveMutation = useMutation({
-    mutationFn: async (data: PaymentConfig) => {
+    mutationFn: async (data: PaymentFormState) => {
       if (!profile?.clinic_id) throw new Error("No clinic found");
 
-      const payload = {
-        clinic_id: profile.clinic_id,
-        ...data,
-      };
-
       if (existingConfig) {
+        // For updates, build a partial payload with only changed fields
+        const updatePayload: Record<string, unknown> = {
+          stripe_enabled: data.stripe_enabled,
+          stripe_mode: data.stripe_mode,
+          stripe_publishable_key: data.stripe_publishable_key,
+          mp_enabled: data.mp_enabled,
+          mp_public_key: data.mp_public_key,
+          mp_country: data.mp_country,
+          default_currency: data.default_currency,
+        };
+        
+        // Only update secrets if new values were provided
+        if (data.stripe_secret_key) {
+          updatePayload.stripe_secret_key = data.stripe_secret_key;
+        }
+        if (data.stripe_webhook_secret) {
+          updatePayload.stripe_webhook_secret = data.stripe_webhook_secret;
+        }
+        if (data.mp_access_token) {
+          updatePayload.mp_access_token = data.mp_access_token;
+        }
+
         const { error } = await supabase
           .from("payment_config")
-          .update(payload)
+          .update(updatePayload)
           .eq("id", existingConfig.id);
         if (error) throw error;
       } else {
+        // For inserts, use properly typed payload
+        const insertPayload = {
+          clinic_id: profile.clinic_id,
+          stripe_enabled: data.stripe_enabled,
+          stripe_mode: data.stripe_mode,
+          stripe_publishable_key: data.stripe_publishable_key,
+          stripe_secret_key: data.stripe_secret_key || null,
+          stripe_webhook_secret: data.stripe_webhook_secret || null,
+          mp_enabled: data.mp_enabled,
+          mp_public_key: data.mp_public_key,
+          mp_access_token: data.mp_access_token || null,
+          mp_country: data.mp_country,
+          default_currency: data.default_currency,
+        };
+
         const { error } = await supabase
           .from("payment_config")
-          .insert(payload);
+          .insert(insertPayload);
         if (error) throw error;
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["payment-config"] });
+      // Clear the secret input fields after save
+      setConfig(prev => ({
+        ...prev,
+        stripe_secret_key: "",
+        stripe_webhook_secret: "",
+        mp_access_token: "",
+      }));
       toast.success("Configuración de pagos guardada");
     },
     onError: (error) => {
@@ -243,44 +321,61 @@ const IntegrationsPayments = () => {
               {/* Secret Key */}
               <div className="space-y-2">
                 <Label>Secret Key *</Label>
-                <div className="relative">
-                  <Input
-                    type={showStripeSecret ? "text" : "password"}
-                    placeholder={
-                      config.stripe_mode === "test" ? "sk_test_..." : "sk_live_..."
-                    }
-                    value={config.stripe_secret_key}
-                    onChange={(e) =>
-                      setConfig({ ...config, stripe_secret_key: e.target.value })
-                    }
-                    className="pr-10"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
-                    onClick={() => setShowStripeSecret(!showStripeSecret)}
-                  >
-                    {showStripeSecret ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
+                {secretHints.stripe_secret_key_hint && !config.stripe_secret_key && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                    <Badge variant="outline" className="font-mono">
+                      {secretHints.stripe_secret_key_hint}
+                    </Badge>
+                    <span className="text-green-600">✓ Configurado</span>
+                  </div>
+                )}
+                <Input
+                  type="password"
+                  placeholder={
+                    secretHints.stripe_secret_key_hint 
+                      ? "Ingresa nuevo valor para reemplazar..." 
+                      : config.stripe_mode === "test" ? "sk_test_..." : "sk_live_..."
+                  }
+                  value={config.stripe_secret_key}
+                  onChange={(e) =>
+                    setConfig({ ...config, stripe_secret_key: e.target.value })
+                  }
+                />
+                {secretHints.stripe_secret_key_hint && (
+                  <p className="text-xs text-muted-foreground">
+                    Deja vacío para mantener el valor actual
+                  </p>
+                )}
               </div>
 
               {/* Webhook Secret */}
               <div className="space-y-2">
                 <Label>Webhook Secret</Label>
+                {secretHints.stripe_webhook_secret_hint && !config.stripe_webhook_secret && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                    <Badge variant="outline" className="font-mono">
+                      {secretHints.stripe_webhook_secret_hint}
+                    </Badge>
+                    <span className="text-green-600">✓ Configurado</span>
+                  </div>
+                )}
                 <Input
-                  placeholder="whsec_..."
+                  type="password"
+                  placeholder={
+                    secretHints.stripe_webhook_secret_hint 
+                      ? "Ingresa nuevo valor para reemplazar..." 
+                      : "whsec_..."
+                  }
                   value={config.stripe_webhook_secret}
                   onChange={(e) =>
                     setConfig({ ...config, stripe_webhook_secret: e.target.value })
                   }
                 />
+                {secretHints.stripe_webhook_secret_hint && (
+                  <p className="text-xs text-muted-foreground">
+                    Deja vacío para mantener el valor actual
+                  </p>
+                )}
               </div>
 
               {/* Webhook URL */}
@@ -405,30 +500,31 @@ const IntegrationsPayments = () => {
               {/* Access Token */}
               <div className="space-y-2">
                 <Label>Access Token *</Label>
-                <div className="relative">
-                  <Input
-                    type={showMPToken ? "text" : "password"}
-                    placeholder="APP_USR-..."
-                    value={config.mp_access_token}
-                    onChange={(e) =>
-                      setConfig({ ...config, mp_access_token: e.target.value })
-                    }
-                    className="pr-10"
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
-                    onClick={() => setShowMPToken(!showMPToken)}
-                  >
-                    {showMPToken ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </Button>
-                </div>
+                {secretHints.mp_access_token_hint && !config.mp_access_token && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1">
+                    <Badge variant="outline" className="font-mono">
+                      {secretHints.mp_access_token_hint}
+                    </Badge>
+                    <span className="text-green-600">✓ Configurado</span>
+                  </div>
+                )}
+                <Input
+                  type="password"
+                  placeholder={
+                    secretHints.mp_access_token_hint 
+                      ? "Ingresa nuevo valor para reemplazar..." 
+                      : "APP_USR-..."
+                  }
+                  value={config.mp_access_token}
+                  onChange={(e) =>
+                    setConfig({ ...config, mp_access_token: e.target.value })
+                  }
+                />
+                {secretHints.mp_access_token_hint && (
+                  <p className="text-xs text-muted-foreground">
+                    Deja vacío para mantener el valor actual
+                  </p>
+                )}
               </div>
 
               {/* Webhook URL */}
