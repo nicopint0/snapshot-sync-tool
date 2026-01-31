@@ -20,64 +20,113 @@ const Appointments = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<"day" | "week" | "month">("day");
 
-  // Mock appointments data
-  const appointments = [
-    {
-      id: "1",
-      patientName: "María López",
-      phone: "+52 55 1234 5678",
-      treatment: "Limpieza dental",
-      startTime: "09:00",
-      endTime: "09:30",
-      status: "confirmed",
-      dentist: "Dr. Juan Pérez",
-      color: "#0D9488",
-    },
-    {
-      id: "2",
-      patientName: "Carlos García",
-      phone: "+52 55 9876 5432",
-      treatment: "Revisión ortodoncia",
-      startTime: "10:00",
-      endTime: "10:45",
-      status: "scheduled",
-      dentist: "Dr. Juan Pérez",
-      color: "#0D9488",
-    },
-    {
-      id: "3",
-      patientName: "Ana Martínez",
-      phone: "+52 55 5555 1234",
-      treatment: "Extracción molar",
-      startTime: "11:30",
-      endTime: "12:30",
-      status: "confirmed",
-      dentist: "Dr. Juan Pérez",
-      color: "#0D9488",
-    },
-    {
-      id: "4",
-      patientName: "Roberto Sánchez",
-      phone: "+52 55 4321 8765",
-      treatment: "Blanqueamiento",
-      startTime: "14:00",
-      endTime: "15:00",
-      status: "in_progress",
-      dentist: "Dr. Juan Pérez",
-      color: "#0D9488",
-    },
-    {
-      id: "5",
-      patientName: "Laura Hernández",
-      phone: "+52 55 1111 2222",
-      treatment: "Consulta inicial",
-      startTime: "16:00",
-      endTime: "16:30",
-      status: "scheduled",
-      dentist: "Dr. Juan Pérez",
-      color: "#0D9488",
-    },
-  ];
+  // Generate mock appointments with actual dates based on today
+  const today = new Date();
+  
+  const generateMockAppointments = () => {
+    const baseAppointments = [
+      {
+        id: "1",
+        patientName: "María López",
+        phone: "+52 55 1234 5678",
+        treatment: "Limpieza dental",
+        startTime: "09:00",
+        endTime: "09:30",
+        status: "confirmed",
+        dentist: "Dr. Juan Pérez",
+        color: "#0D9488",
+        dayOffset: 0, // today
+      },
+      {
+        id: "2",
+        patientName: "Carlos García",
+        phone: "+52 55 9876 5432",
+        treatment: "Revisión ortodoncia",
+        startTime: "10:00",
+        endTime: "10:45",
+        status: "scheduled",
+        dentist: "Dr. Juan Pérez",
+        color: "#0D9488",
+        dayOffset: 0, // today
+      },
+      {
+        id: "3",
+        patientName: "Ana Martínez",
+        phone: "+52 55 5555 1234",
+        treatment: "Extracción molar",
+        startTime: "11:30",
+        endTime: "12:30",
+        status: "confirmed",
+        dentist: "Dr. Juan Pérez",
+        color: "#0D9488",
+        dayOffset: 0, // today
+      },
+      {
+        id: "4",
+        patientName: "Roberto Sánchez",
+        phone: "+52 55 4321 8765",
+        treatment: "Blanqueamiento",
+        startTime: "14:00",
+        endTime: "15:00",
+        status: "in_progress",
+        dentist: "Dr. Juan Pérez",
+        color: "#0D9488",
+        dayOffset: 1, // tomorrow
+      },
+      {
+        id: "5",
+        patientName: "Laura Hernández",
+        phone: "+52 55 1111 2222",
+        treatment: "Consulta inicial",
+        startTime: "16:00",
+        endTime: "16:30",
+        status: "scheduled",
+        dentist: "Dr. Juan Pérez",
+        color: "#0D9488",
+        dayOffset: 1, // tomorrow
+      },
+      {
+        id: "6",
+        patientName: "Pedro Ramírez",
+        phone: "+52 55 3333 4444",
+        treatment: "Corona dental",
+        startTime: "09:30",
+        endTime: "11:00",
+        status: "confirmed",
+        dentist: "Dr. Juan Pérez",
+        color: "#0D9488",
+        dayOffset: 2, // day after tomorrow
+      },
+      {
+        id: "7",
+        patientName: "Sofia Torres",
+        phone: "+52 55 5555 6666",
+        treatment: "Endodoncia",
+        startTime: "15:00",
+        endTime: "16:30",
+        status: "scheduled",
+        dentist: "Dr. Juan Pérez",
+        color: "#0D9488",
+        dayOffset: -1, // yesterday
+      },
+    ];
+
+    return baseAppointments.map(apt => {
+      const aptDate = new Date(today);
+      aptDate.setDate(today.getDate() + apt.dayOffset);
+      return {
+        ...apt,
+        date: aptDate,
+      };
+    });
+  };
+
+  const allAppointments = generateMockAppointments();
+
+  // Filter appointments for the current selected date
+  const appointments = allAppointments.filter(apt => 
+    apt.date.toDateString() === currentDate.toDateString()
+  );
 
   const hours = Array.from({ length: 12 }, (_, i) => i + 8); // 8AM to 7PM
 
