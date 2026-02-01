@@ -23,6 +23,8 @@ import {
 } from "@/components/ui/select";
 import AppLayout from "@/components/layout/AppLayout";
 import NewTreatmentDialog from "@/components/treatments/NewTreatmentDialog";
+import EditTreatmentDialog from "@/components/treatments/EditTreatmentDialog";
+import DeleteTreatmentDialog from "@/components/treatments/DeleteTreatmentDialog";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Treatment {
@@ -42,6 +44,8 @@ const Treatments = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [showNewTreatment, setShowNewTreatment] = useState(false);
+  const [editingTreatment, setEditingTreatment] = useState<Treatment | null>(null);
+  const [deletingTreatment, setDeletingTreatment] = useState<Treatment | null>(null);
 
   useEffect(() => {
     fetchTreatments();
@@ -93,7 +97,32 @@ const Treatments = () => {
 
         <NewTreatmentDialog
           open={showNewTreatment}
-          onOpenChange={setShowNewTreatment}
+          onOpenChange={(open) => {
+            setShowNewTreatment(open);
+            if (!open) fetchTreatments();
+          }}
+        />
+        
+        <EditTreatmentDialog
+          open={!!editingTreatment}
+          onOpenChange={(open) => {
+            if (!open) {
+              setEditingTreatment(null);
+              fetchTreatments();
+            }
+          }}
+          treatment={editingTreatment}
+        />
+        
+        <DeleteTreatmentDialog
+          open={!!deletingTreatment}
+          onOpenChange={(open) => {
+            if (!open) {
+              setDeletingTreatment(null);
+              fetchTreatments();
+            }
+          }}
+          treatment={deletingTreatment}
         />
         {/* Filters */}
         <Card>
@@ -189,10 +218,19 @@ const Treatments = () => {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setEditingTreatment(treatment)}
+                          >
                             <Edit className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" className="text-destructive">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="text-destructive"
+                            onClick={() => setDeletingTreatment(treatment)}
+                          >
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
