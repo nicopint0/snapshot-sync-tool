@@ -77,7 +77,6 @@ const plans: Plan[] = [
       "5 administrativos",
       "3 ubicaciones",
       "Soporte premium 24/7",
-      "API personalizada",
       "Onboarding dedicado",
     ],
   },
@@ -85,7 +84,7 @@ const plans: Plan[] = [
 
 const SubscriptionSection = () => {
   const { i18n } = useTranslation();
-  const [currentPlan] = useState("individual");
+  const [currentPlan, setCurrentPlan] = useState("individual");
   const [showChangePlan, setShowChangePlan] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
 
@@ -109,9 +108,11 @@ const SubscriptionSection = () => {
   };
 
   const handleConfirmChange = () => {
-    // Here you would integrate with your payment system
-    setShowChangePlan(false);
-    setSelectedPlan(null);
+    if (selectedPlan) {
+      setCurrentPlan(selectedPlan);
+      setShowChangePlan(false);
+      setSelectedPlan(null);
+    }
   };
 
   return (

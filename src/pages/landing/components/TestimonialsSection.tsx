@@ -1,45 +1,63 @@
 import { motion } from "framer-motion";
 import { Star } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 
 const testimonials = [
   {
     name: "Dra. María González",
     role: "Odontóloga General",
-    clinic: "Dental Care México",
+    clinic: "Consultorio Dental María",
+    plan: "Individual",
     avatar: "",
     content:
-      "Denty.io transformó mi consultorio. Antes pasaba horas organizando citas, ahora todo es automático. Mis pacientes reciben recordatorios por WhatsApp y casi no tengo cancelaciones.",
+      "Con el Plan Individual tengo todo lo que necesito para mi consultorio. La agenda automática y los recordatorios por WhatsApp han reducido mis cancelaciones en un 80%.",
     rating: 5,
   },
   {
     name: "Dr. Carlos Mendoza",
-    role: "Ortodoncista",
-    clinic: "Ortodoncia Especializada",
+    role: "Director Clínico",
+    clinic: "Clínica Dental Sonrisa",
+    plan: "Profesional",
     avatar: "",
     content:
-      "El odontograma digital es increíble. Puedo mostrar a mis pacientes exactamente qué tratamiento necesitan y generar el presupuesto en segundos. ¡Mis cierres de venta mejoraron un 40%!",
+      "Pasamos al Plan Profesional cuando crecimos a 4 dentistas. Tener un administrativo dedicado y el soporte prioritario ha sido clave para nuestra operación diaria.",
     rating: 5,
   },
   {
     name: "Dra. Ana Rodríguez",
     role: "Endodoncista",
     clinic: "Centro Dental Premium",
+    plan: "Profesional",
     avatar: "",
     content:
-      "Llevamos 6 meses usando Denty.io y la diferencia es notable. El equipo de soporte responde rápido y siempre están mejorando el software. 100% recomendado.",
+      "Los reportes avanzados del Plan Profesional me permiten ver exactamente qué tratamientos generan más ingresos. Mis cierres de venta mejoraron un 40%.",
     rating: 5,
   },
   {
     name: "Dr. Roberto Sánchez",
-    role: "Director Clínico",
-    clinic: "Dental Group Colombia",
+    role: "CEO",
+    clinic: "Dental Group Chile",
+    plan: "Business",
     avatar: "",
     content:
-      "Tenemos 3 sucursales y Denty.io nos permite gestionar todo desde un solo lugar. Los reportes financieros me ahorran horas de trabajo cada semana.",
+      "Con 3 sucursales y 15 profesionales, el Plan Business es perfecto. El onboarding dedicado nos tuvo operativos en una semana y el soporte 24/7 es excepcional.",
     rating: 5,
   },
 ];
+
+const getPlanColor = (plan: string) => {
+  switch (plan) {
+    case "Individual":
+      return "bg-blue-500/10 text-blue-600 border-blue-500/20";
+    case "Profesional":
+      return "bg-primary/10 text-primary border-primary/20";
+    case "Business":
+      return "bg-amber-500/10 text-amber-600 border-amber-500/20";
+    default:
+      return "bg-muted";
+  }
+};
 
 const TestimonialsSection = () => {
   return (
@@ -71,13 +89,18 @@ const TestimonialsSection = () => {
               transition={{ duration: 0.5, delay: index * 0.1 }}
               className="bg-card rounded-xl p-6 border border-border"
             >
-              <div className="flex gap-1 mb-4">
-                {Array.from({ length: testimonial.rating }).map((_, i) => (
-                  <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                ))}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex gap-1">
+                  {Array.from({ length: testimonial.rating }).map((_, i) => (
+                    <Star key={i} className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                  ))}
+                </div>
+                <Badge variant="outline" className={getPlanColor(testimonial.plan)}>
+                  {testimonial.plan}
+                </Badge>
               </div>
               
-              <p className="text-sm text-muted-foreground mb-6 line-clamp-4">
+              <p className="text-sm text-muted-foreground mb-6 line-clamp-5">
                 "{testimonial.content}"
               </p>
 
