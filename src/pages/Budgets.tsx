@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
-import { Plus, Search, Filter, Eye, Edit, Loader2, FileText } from "lucide-react";
+import { Plus, Search, Filter, Eye, Loader2, FileText, CheckCircle, XCircle, Send, MoreHorizontal } from "lucide-react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,37 +22,63 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import AppLayout from "@/components/layout/AppLayout";
 import NewBudgetDialog from "@/components/budgets/NewBudgetDialog";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 interface Budget {
   id: string;
   patient_id: string;
   status: string | null;
   total: number | null;
+  subtotal: number | null;
+  discount_percent: number | null;
+  tax_percent: number | null;
   valid_until: string | null;
   created_at: string;
+  notes: string | null;
   patients?: {
     first_name: string;
     last_name: string;
   };
+  budget_items?: {
+    id: string;
+    description: string;
+    quantity: number;
+    unit_price: number;
+    total: number;
+  }[];
 }
 
 const Budgets = () => {
   const { t } = useTranslation();
-  const [budgets, setBudgets] = useState<Budget[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { profile } = useAuth();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [showNewBudget, setShowNewBudget] = useState(false);
+  const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
+  const [showDetailDialog, setShowDetailDialog] = useState(false);
 
-  useEffect(() => {
-    fetchBudgets();
-  }, []);
-
-  const fetchBudgets = async () => {
-    try {
+  const { data: budgets = [], isLoading: loading } = useQuery({
+    queryKey: ["budgets", profile?.clinic_id],
+    queryFn: async () => {
+      if (!profile?.clinic_id) return [];
       const { data, error } = await supabase
         .from("budgets")
         .select(`
@@ -59,17 +86,48 @@ const Budgets = () => {
           patients (
             first_name,
             last_name
+          ),
+          budget_items (
+            id,
+            description,
+            quantity,
+            unit_price,
+            total
           )
         `)
+        .eq("clinic_id", profile.clinic_id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setBudgets(data || []);
-    } catch (error) {
-      console.error("Error fetching budgets:", error);
-    } finally {
-      setLoading(false);
-    }
+      return data as Budget[];
+    },
+    enabled: !!profile?.clinic_id,
+  });
+
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ budgetId, status }: { budgetId: string; status: string }) => {
+      const { error } = await supabase
+        .from("budgets")
+        .update({ status })
+        .eq("id", budgetId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["budgets"] });
+      toast.success("Estado actualizado");
+    },
+    onError: (error) => {
+      toast.error("Error al actualizar: " + error.message);
+    },
+  });
+
+  const handleViewBudget = (budget: Budget) => {
+    setSelectedBudget(budget);
+    setShowDetailDialog(true);
+  };
+
+  const handleChangeStatus = (budgetId: string, status: string) => {
+    updateStatusMutation.mutate({ budgetId, status });
   };
 
   const statuses = [
@@ -134,6 +192,7 @@ const Budgets = () => {
           open={showNewBudget}
           onOpenChange={setShowNewBudget}
         />
+
         {/* Filters */}
         <Card>
           <CardContent className="pt-6">
@@ -222,13 +281,39 @@ const Budgets = () => {
                         {getStatusBadge(budget.status)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="icon">
+                        <div className="flex justify-end gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => handleViewBudget(budget)}
+                          >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon">
-                            <Edit className="h-4 w-4" />
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleChangeStatus(budget.id, "sent")}>
+                                <Send className="mr-2 h-4 w-4" />
+                                Marcar como Enviado
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleChangeStatus(budget.id, "approved")}>
+                                <CheckCircle className="mr-2 h-4 w-4" />
+                                Marcar como Aprobado
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleChangeStatus(budget.id, "rejected")}>
+                                <XCircle className="mr-2 h-4 w-4" />
+                                Marcar como Rechazado
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => handleChangeStatus(budget.id, "draft")}>
+                                Volver a Borrador
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -239,6 +324,67 @@ const Budgets = () => {
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* Budget Detail Dialog */}
+      <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              Presupuesto #{selectedBudget?.id.slice(0, 8).toUpperCase()}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedBudget && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="text-sm text-muted-foreground">Paciente</p>
+                  <p className="font-medium">
+                    {selectedBudget.patients?.first_name} {selectedBudget.patients?.last_name}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground">Fecha</p>
+                  <p className="font-medium">
+                    {new Date(selectedBudget.created_at).toLocaleDateString("es-ES")}
+                  </p>
+                </div>
+              </div>
+
+              {/* Items */}
+              <div className="border rounded-lg divide-y">
+                {selectedBudget.budget_items?.map((item) => (
+                  <div key={item.id} className="flex items-center justify-between p-3">
+                    <div>
+                      <p className="font-medium">{item.description}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {item.quantity} x ${(item.unit_price || 0).toLocaleString()}
+                      </p>
+                    </div>
+                    <p className="font-bold">${(item.total || 0).toLocaleString()}</p>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between p-3 bg-muted">
+                  <span className="font-bold">Total</span>
+                  <span className="font-bold text-lg">
+                    ${(selectedBudget.total || 0).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              {selectedBudget.notes && (
+                <div>
+                  <p className="text-sm text-muted-foreground mb-1">Notas</p>
+                  <p className="text-sm">{selectedBudget.notes}</p>
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2">
+                {getStatusBadge(selectedBudget.status)}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 };
