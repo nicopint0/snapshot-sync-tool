@@ -498,31 +498,40 @@ function generateCalendarLinks(data: Record<string, unknown>): string {
   // Format for Google Calendar (YYYYMMDDTHHmmssZ)
   const formatGoogleDate = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
   
-  const title = encodeURIComponent(`Cita dental - ${data.clinicName}`);
-  const description = encodeURIComponent(
-    `Cita en ${data.clinicName}${data.treatment ? `\nTratamiento: ${data.treatment}` : ""}${data.dentistName ? `\nProfesional: ${data.dentistName}` : ""}`
-  );
-  const location = encodeURIComponent((data.clinicAddress as string) || "");
+  const clinicAddress = (data.clinicAddress as string) || "";
+  const title = `Cita dental - ${data.clinicName}`;
+  const description = `Cita en ${data.clinicName}${data.treatment ? `\nTratamiento: ${data.treatment}` : ""}${data.dentistName ? `\nProfesional: ${data.dentistName}` : ""}`;
   
-  // Google Calendar
-  const googleUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${formatGoogleDate(start)}/${formatGoogleDate(end)}&details=${description}&location=${location}`;
+  // Google Calendar - now includes location
+  const googleUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${formatGoogleDate(start)}/${formatGoogleDate(end)}&details=${encodeURIComponent(description)}&location=${encodeURIComponent(clinicAddress)}`;
   
   // Outlook Calendar
-  const outlookUrl = `https://outlook.live.com/calendar/0/action/compose?subject=${title}&startdt=${start.toISOString()}&enddt=${end.toISOString()}&body=${description}&location=${location}`;
+  const outlookUrl = `https://outlook.live.com/calendar/0/action/compose?subject=${encodeURIComponent(title)}&startdt=${start.toISOString()}&enddt=${end.toISOString()}&body=${encodeURIComponent(description)}&location=${encodeURIComponent(clinicAddress)}`;
   
-  // ICS format for Apple Calendar and others
-  const icsContent = `BEGIN:VCALENDAR
-VERSION:2.0
-BEGIN:VEVENT
-DTSTART:${formatGoogleDate(start)}
-DTEND:${formatGoogleDate(end)}
-SUMMARY:Cita dental - ${data.clinicName}
-DESCRIPTION:${data.treatment ? `Tratamiento: ${data.treatment}` : ""}${data.dentistName ? ` Profesional: ${data.dentistName}` : ""}
-LOCATION:${data.clinicAddress || ""}
-END:VEVENT
-END:VCALENDAR`;
-  const icsBase64 = btoa(unescape(encodeURIComponent(icsContent)));
-  const icsUrl = `data:text/calendar;base64,${icsBase64}`;
+  // ICS format for Apple Calendar - properly formatted with CRLF line endings
+  const escapeIcsText = (text: string) => text.replace(/[,;\\]/g, '\\$&').replace(/\n/g, '\\n');
+  const formatIcsDate = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  
+  const icsLines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Clinica Dental//ES",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    "BEGIN:VEVENT",
+    `UID:${Date.now()}@clinicadental`,
+    `DTSTAMP:${formatIcsDate(new Date())}`,
+    `DTSTART:${formatIcsDate(start)}`,
+    `DTEND:${formatIcsDate(end)}`,
+    `SUMMARY:${escapeIcsText(title)}`,
+    `DESCRIPTION:${escapeIcsText(description.replace(/\n/g, ' '))}`,
+    clinicAddress ? `LOCATION:${escapeIcsText(clinicAddress)}` : "",
+    "END:VEVENT",
+    "END:VCALENDAR"
+  ].filter(line => line !== "").join("\r\n");
+  
+  // Use Blob-style base64 encoding that works better in email clients
+  const icsBase64 = btoa(unescape(encodeURIComponent(icsLines)));
   
   return `
     <div style="margin: 25px 0; padding: 20px; background: #F0FDF4; border-radius: 8px; text-align: center;">
@@ -540,12 +549,15 @@ END:VCALENDAR`;
             </a>
           </td>
           <td style="padding: 0 8px;">
-            <a href="${icsUrl}" download="cita.ics" style="display: inline-block; padding: 10px 16px; background: #1F2937; color: white; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 500;">
+            <a href="data:text/calendar;charset=utf-8;base64,${icsBase64}" download="cita-dental.ics" style="display: inline-block; padding: 10px 16px; background: #1F2937; color: white; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 500;">
               Apple / Otros
             </a>
           </td>
         </tr>
       </table>
+      <p style="margin: 15px 0 0 0; font-size: 12px; color: #6B7280;">
+        💡 En Apple: guarda el archivo .ics y ábrelo para agregarlo a tu calendario
+      </p>
     </div>
   `;
 }
