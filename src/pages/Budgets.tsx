@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
-import { Plus, Search, Filter, Eye, Loader2, FileText, CheckCircle, XCircle, Send, MoreHorizontal, MessageCircle } from "lucide-react";
+import { Plus, Search, Filter, Eye, Loader2, FileText, CheckCircle, XCircle, Send, MoreHorizontal } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/dialog";
 import AppLayout from "@/components/layout/AppLayout";
 import NewBudgetDialog from "@/components/budgets/NewBudgetDialog";
+import WhatsAppButton from "@/components/common/WhatsAppButton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
@@ -134,24 +135,16 @@ const Budgets = () => {
     updateStatusMutation.mutate({ budgetId, status });
   };
 
-  const handleSendWhatsApp = (budget: Budget) => {
-    const phone = budget.patients?.whatsapp || budget.patients?.phone;
-    if (!phone) {
-      toast.error("El paciente no tiene número de WhatsApp registrado");
-      return;
-    }
-
-    const cleanPhone = phone.replace(/\D/g, "");
+  const buildWhatsAppMessage = (budget: Budget) => {
     const patientName = `${budget.patients?.first_name || ""} ${budget.patients?.last_name || ""}`.trim();
     const budgetNumber = budget.id.slice(0, 8).toUpperCase();
     const date = new Date(budget.created_at).toLocaleDateString("es-ES");
     
-    // Build items list
     const itemsList = budget.budget_items?.map(item => 
       `• ${item.description}: $${(item.total || 0).toLocaleString()}`
     ).join("\n") || "";
 
-    const message = `¡Hola ${patientName}! 👋
+    return `¡Hola ${patientName}! 👋
 
 Le enviamos el presupuesto *#${budgetNumber}* de su tratamiento dental:
 
@@ -164,14 +157,10 @@ ${itemsList}
 ${budget.valid_until ? `⏳ Válido hasta: ${new Date(budget.valid_until).toLocaleDateString("es-ES")}` : ""}
 
 ¿Tiene alguna pregunta? Estamos a su disposición.`;
+  };
 
-    const encodedMessage = encodeURIComponent(message);
-    const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
-    
-    window.open(whatsappUrl, "_blank");
-    
-    // Mark as sent
-    handleChangeStatus(budget.id, "sent");
+  const handleWhatsAppSent = (budgetId: string) => {
+    handleChangeStatus(budgetId, "sent");
   };
 
   const statuses = [
@@ -333,14 +322,23 @@ ${budget.valid_until ? `⏳ Válido hasta: ${new Date(budget.valid_until).toLoca
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => handleSendWhatsApp(budget)}
-                            title="Enviar por WhatsApp"
-                          >
-                            <MessageCircle className="h-4 w-4 text-green-600" />
-                          </Button>
+                          {(budget.patients?.whatsapp || budget.patients?.phone) ? (
+                            <WhatsAppButton
+                              phoneNumber={budget.patients?.whatsapp || budget.patients?.phone || ""}
+                              defaultMessage={buildWhatsAppMessage(budget)}
+                              variant="icon"
+                              onClick={() => handleWhatsAppSent(budget.id)}
+                            />
+                          ) : (
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              onClick={() => toast.error("El paciente no tiene número de WhatsApp registrado")}
+                              title="Sin número de WhatsApp"
+                            >
+                              <Eye className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          )}
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button variant="ghost" size="icon">
@@ -348,11 +346,19 @@ ${budget.valid_until ? `⏳ Válido hasta: ${new Date(budget.valid_until).toLoca
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleSendWhatsApp(budget)}>
-                                <MessageCircle className="mr-2 h-4 w-4 text-green-600" />
-                                Enviar por WhatsApp
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
+                              {(budget.patients?.whatsapp || budget.patients?.phone) && (
+                                <>
+                                  <DropdownMenuItem asChild>
+                                    <WhatsAppButton
+                                      phoneNumber={budget.patients?.whatsapp || budget.patients?.phone || ""}
+                                      defaultMessage={buildWhatsAppMessage(budget)}
+                                      variant="button"
+                                      onClick={() => handleWhatsAppSent(budget.id)}
+                                    />
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                </>
+                              )}
                               <DropdownMenuItem onClick={() => handleChangeStatus(budget.id, "sent")}>
                                 <Send className="mr-2 h-4 w-4" />
                                 Marcar como Enviado
