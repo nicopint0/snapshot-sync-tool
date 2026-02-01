@@ -23,18 +23,11 @@ import {
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { treatmentSchema, validateForm, type TreatmentFormData } from "@/lib/validations";
 
 interface NewTreatmentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-}
-
-interface TreatmentData {
-  name: string;
-  description: string;
-  price: string;
-  duration_minutes: number;
-  category: string;
 }
 
 const categories = [
@@ -53,8 +46,9 @@ const categories = [
 const NewTreatmentDialog = ({ open, onOpenChange }: NewTreatmentDialogProps) => {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
+  const [errors, setErrors] = useState<Record<string, string>>({});
   
-  const [treatment, setTreatment] = useState<TreatmentData>({
+  const [treatment, setTreatment] = useState<TreatmentFormData>({
     name: "",
     description: "",
     price: "",
@@ -63,16 +57,16 @@ const NewTreatmentDialog = ({ open, onOpenChange }: NewTreatmentDialogProps) => 
   });
 
   const createMutation = useMutation({
-    mutationFn: async (data: TreatmentData) => {
+    mutationFn: async (data: TreatmentFormData) => {
       if (!profile?.clinic_id) throw new Error("No clinic found");
       
       const { error } = await supabase.from("treatments").insert({
         clinic_id: profile.clinic_id,
-        name: data.name,
-        description: data.description || null,
-        price: parseFloat(data.price) || 0,
+        name: data.name.trim(),
+        description: data.description?.trim() || null,
+        price: data.price ? parseFloat(data.price) : 0,
         duration_minutes: data.duration_minutes,
-        category: data.category || null,
+        category: data.category?.trim() || null,
         is_active: true,
       });
       
@@ -97,18 +91,25 @@ const NewTreatmentDialog = ({ open, onOpenChange }: NewTreatmentDialogProps) => 
       duration_minutes: 30,
       category: "",
     });
+    setErrors({});
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!treatment.name.trim()) {
-      toast.error("El nombre es requerido");
+    // Validate form data
+    const validation = validateForm(treatmentSchema, treatment);
+    if (!validation.success) {
+      setErrors(validation.errors || {});
+      toast.error("Por favor corrige los errores en el formulario");
       return;
     }
     
+    setErrors({});
     createMutation.mutate(treatment);
   };
+
+  const getFieldError = (field: string) => errors[field];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -128,7 +129,12 @@ const NewTreatmentDialog = ({ open, onOpenChange }: NewTreatmentDialogProps) => 
               placeholder="Ej: Limpieza dental"
               value={treatment.name}
               onChange={(e) => setTreatment({ ...treatment, name: e.target.value })}
+              maxLength={100}
+              className={getFieldError("name") ? "border-destructive" : ""}
             />
+            {getFieldError("name") && (
+              <p className="text-sm text-destructive">{getFieldError("name")}</p>
+            )}
           </div>
 
           {/* Description */}
@@ -138,6 +144,7 @@ const NewTreatmentDialog = ({ open, onOpenChange }: NewTreatmentDialogProps) => 
               placeholder="Descripción del tratamiento..."
               value={treatment.description}
               onChange={(e) => setTreatment({ ...treatment, description: e.target.value })}
+              maxLength={500}
               rows={3}
             />
           </div>
