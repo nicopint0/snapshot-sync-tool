@@ -75,6 +75,7 @@ const UsersManagementSection = ({ currentPlan }: UsersManagementSectionProps) =>
   const queryClient = useQueryClient();
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
+  const [isSendingInvite, setIsSendingInvite] = useState(false);
   const [inviteForm, setInviteForm] = useState({
     email: "",
     firstName: "",
@@ -156,11 +157,58 @@ const UsersManagementSection = ({ currentPlan }: UsersManagementSectionProps) =>
     },
   });
 
-  // For now, just show a placeholder for invite since we'd need email invitations
-  const handleInvite = () => {
-    toast.info("Función de invitación por email próximamente. Por ahora, el usuario debe registrarse y ser agregado manualmente.");
-    setShowInviteDialog(false);
-    setInviteForm({ email: "", firstName: "", lastName: "", role: "dentist" });
+  // Fetch clinic info for the invitation email
+  const { data: clinic } = useQuery({
+    queryKey: ["clinic", profile?.clinic_id],
+    queryFn: async () => {
+      if (!profile?.clinic_id) return null;
+      const { data, error } = await supabase
+        .from("clinics")
+        .select("name")
+        .eq("id", profile.clinic_id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profile?.clinic_id,
+  });
+
+  const handleInvite = async () => {
+    if (!inviteForm.email || !inviteForm.firstName) {
+      toast.error("Por favor completa los campos requeridos");
+      return;
+    }
+
+    setIsSendingInvite(true);
+
+    try {
+      const inviterName = `${profile?.first_name || ""} ${profile?.last_name || ""}`.trim() || "Un administrador";
+      const clinicName = clinic?.name || "tu clínica";
+      const inviteUrl = `${window.location.origin}/auth/register?invite=true&clinic=${profile?.clinic_id}&role=${inviteForm.role}`;
+
+      const { data, error } = await supabase.functions.invoke("send-invitation", {
+        body: {
+          email: inviteForm.email,
+          firstName: inviteForm.firstName,
+          lastName: inviteForm.lastName,
+          role: inviteForm.role,
+          clinicName,
+          inviterName,
+          inviteUrl,
+        },
+      });
+
+      if (error) throw error;
+
+      toast.success(`Invitación enviada a ${inviteForm.email}`);
+      setShowInviteDialog(false);
+      setInviteForm({ email: "", firstName: "", lastName: "", role: "dentist" });
+    } catch (error: any) {
+      console.error("Error sending invitation:", error);
+      toast.error(error.message || "Error al enviar la invitación");
+    } finally {
+      setIsSendingInvite(false);
+    }
   };
 
   if (!canManageUsers) {
@@ -379,12 +427,16 @@ const UsersManagementSection = ({ currentPlan }: UsersManagementSectionProps) =>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowInviteDialog(false)}>
+            <Button variant="outline" onClick={() => setShowInviteDialog(false)} disabled={isSendingInvite}>
               Cancelar
             </Button>
-            <Button onClick={handleInvite}>
-              <Mail className="h-4 w-4 mr-2" />
-              Enviar Invitación
+            <Button onClick={handleInvite} disabled={isSendingInvite}>
+              {isSendingInvite ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Mail className="h-4 w-4 mr-2" />
+              )}
+              {isSendingInvite ? "Enviando..." : "Enviar Invitación"}
             </Button>
           </DialogFooter>
         </DialogContent>
