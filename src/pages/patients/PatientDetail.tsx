@@ -14,7 +14,6 @@ import {
   MessageCircle,
   FileText,
   CreditCard,
-  Stethoscope,
   Printer,
   Plus,
 } from "lucide-react";
@@ -36,7 +35,6 @@ import OdontogramVisual from "@/components/clinical/OdontogramVisual";
 import PatientHeader from "@/components/print/PatientHeader";
 import EditPatientForm from "@/components/patients/EditPatientForm";
 import NewBudgetDialog from "@/components/budgets/NewBudgetDialog";
-import NewTreatmentDialog from "@/components/treatments/NewTreatmentDialog";
 import { usePrint } from "@/hooks/usePrint";
 import { supabase } from "@/integrations/supabase/client";
 import { Database } from "@/integrations/supabase/types";
@@ -84,12 +82,10 @@ const PatientDetail = () => {
   const [isEditing, setIsEditing] = useState(location.pathname.endsWith("/edit"));
   const [activeTab, setActiveTab] = useState("summary");
   const [showBudgetDialog, setShowBudgetDialog] = useState(false);
-  const [showTreatmentDialog, setShowTreatmentDialog] = useState(false);
   
   // Refs for printing
   const odontogramRef = useRef<HTMLDivElement>(null);
   const summaryRef = useRef<HTMLDivElement>(null);
-  const treatmentsRef = useRef<HTMLDivElement>(null);
   const budgetsRef = useRef<HTMLDivElement>(null);
   const fullReportRef = useRef<HTMLDivElement>(null);
   
@@ -100,10 +96,6 @@ const PatientDetail = () => {
   
   const { contentRef: printSummaryRef, handlePrint: printSummary } = usePrint<HTMLDivElement>({
     title: `Resumen - ${patient?.first_name} ${patient?.last_name}`,
-  });
-  
-  const { contentRef: printTreatmentsRef, handlePrint: printTreatments } = usePrint<HTMLDivElement>({
-    title: `Tratamientos - ${patient?.first_name} ${patient?.last_name}`,
   });
   
   const { contentRef: printBudgetsRef, handlePrint: printBudgets } = usePrint<HTMLDivElement>({
@@ -321,9 +313,6 @@ const PatientDetail = () => {
                   <DropdownMenuItem onClick={printOdontogram}>
                     Solo Odontograma
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={printTreatments}>
-                    Solo Tratamientos
-                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={printBudgets}>
                     Solo Presupuestos
                   </DropdownMenuItem>
@@ -361,10 +350,9 @@ const PatientDetail = () => {
           />
         ) : (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3 md:grid-cols-5 lg:w-auto lg:inline-grid">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:w-auto lg:inline-grid">
               <TabsTrigger value="summary">Resumen</TabsTrigger>
               <TabsTrigger value="odontogram">Odontograma</TabsTrigger>
-              <TabsTrigger value="treatments">Tratamientos</TabsTrigger>
               <TabsTrigger value="budgets">Presupuestos</TabsTrigger>
               <TabsTrigger value="payments">Pagos</TabsTrigger>
             </TabsList>
@@ -512,26 +500,6 @@ const PatientDetail = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="treatments">
-            <div ref={printTreatmentsRef}>
-              <PatientHeader patient={patient} />
-              <Card className="print:border print:shadow-none">
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <CardTitle className="text-lg flex items-center gap-2">
-                    <Stethoscope className="h-5 w-5" />
-                    Tratamientos
-                  </CardTitle>
-                  <Button size="sm" onClick={() => setShowTreatmentDialog(true)} className="print:hidden">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Nuevo Tratamiento
-                  </Button>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">No hay tratamientos registrados para este paciente</p>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
 
           <TabsContent value="budgets">
             <div ref={printBudgetsRef}>
@@ -704,16 +672,40 @@ const PatientDetail = () => {
             />
           </div>
           
-          {/* Treatments placeholder */}
-          <div className="mb-6">
-            <h2 className="text-lg font-bold mb-4 border-b pb-2">Tratamientos</h2>
-            <p className="text-sm text-muted-foreground">No hay tratamientos registrados</p>
-          </div>
-          
-          {/* Budgets placeholder */}
+          {/* Budgets section - excluding rejected */}
           <div className="mb-6">
             <h2 className="text-lg font-bold mb-4 border-b pb-2">Presupuestos</h2>
-            <p className="text-sm text-muted-foreground">No hay presupuestos registrados</p>
+            {patientBudgets.filter(b => b.status !== "rejected").length === 0 ? (
+              <p className="text-sm text-muted-foreground">No hay presupuestos registrados</p>
+            ) : (
+              <div className="space-y-4">
+                {patientBudgets.filter(b => b.status !== "rejected").map((budget) => (
+                  <div key={budget.id} className="border rounded p-3">
+                    <div className="flex justify-between mb-2">
+                      <span className="font-medium">
+                        {budget.status === "approved" ? "Aprobado" :
+                         budget.status === "sent" ? "Enviado" : "Borrador"}
+                      </span>
+                      <span className="font-bold">${budget.total?.toLocaleString() || 0}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground mb-2">
+                      {new Date(budget.created_at).toLocaleDateString("es-ES")}
+                      {budget.discount_percent > 0 && ` • ${budget.discount_percent}% descuento`}
+                    </p>
+                    {budget.budget_items && budget.budget_items.length > 0 && (
+                      <ul className="text-sm space-y-1">
+                        {budget.budget_items.map((item: any) => (
+                          <li key={item.id} className="flex justify-between">
+                            <span>{item.description} x{item.quantity}</span>
+                            <span>${item.total?.toLocaleString()}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
         {/* Dialogs */}
@@ -721,10 +713,6 @@ const PatientDetail = () => {
           open={showBudgetDialog}
           onOpenChange={setShowBudgetDialog}
           preselectedPatient={patient ? { id: patient.id, first_name: patient.first_name, last_name: patient.last_name } : null}
-        />
-        <NewTreatmentDialog
-          open={showTreatmentDialog}
-          onOpenChange={setShowTreatmentDialog}
         />
       </motion.div>
     </AppLayout>
