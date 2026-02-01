@@ -32,7 +32,7 @@ const Settings = () => {
   const { profile } = useAuth();
   const [activeSection, setActiveSection] = useState<SettingsSection>("profile");
   const [isLoading, setIsLoading] = useState(false);
-  const [currentPlan, setCurrentPlan] = useState("individual");
+  // currentPlan is now managed by useSubscription hook in SubscriptionSection
 
   const sections = [
     { id: "profile" as const, label: "Perfil de Usuario", icon: User },
@@ -123,7 +123,7 @@ const Settings = () => {
         );
 
       case "users":
-        return <UsersManagementSection currentPlan={currentPlan} />;
+        return <UsersManagementSection />;
 
       case "schedule":
         return <ProfessionalSchedule />;
@@ -175,7 +175,7 @@ const Settings = () => {
         return <IntegrationsSection />;
 
       case "subscription":
-        return <SubscriptionSection currentPlan={currentPlan} onPlanChange={setCurrentPlan} />;
+        return <SubscriptionSection />;
 
       default:
         return null;

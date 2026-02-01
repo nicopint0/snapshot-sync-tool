@@ -44,6 +44,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useAuth } from "@/hooks/useAuth";
+import { useSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -51,10 +52,6 @@ interface PlanLimits {
   professionals: number;
   admins: number;
   planName: string;
-}
-
-interface UsersManagementSectionProps {
-  currentPlan: string;
 }
 
 const planLimits: Record<string, PlanLimits> = {
@@ -70,8 +67,9 @@ const roleLabels: Record<string, { label: string; icon: React.ElementType; color
   receptionist: { label: "Recepcionista", icon: Users, color: "bg-purple-500/10 text-purple-600" },
 };
 
-const UsersManagementSection = ({ currentPlan }: UsersManagementSectionProps) => {
+const UsersManagementSection = () => {
   const { profile, user } = useAuth();
+  const { plan: currentPlan, subscribed } = useSubscription();
   const queryClient = useQueryClient();
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
@@ -84,7 +82,7 @@ const UsersManagementSection = ({ currentPlan }: UsersManagementSectionProps) =>
   });
 
   const limits = planLimits[currentPlan] || planLimits.individual;
-  const canManageUsers = currentPlan !== "individual";
+  const canManageUsers = subscribed && currentPlan !== "individual";
 
   // Fetch team members
   const { data: teamMembers = [], isLoading } = useQuery({
