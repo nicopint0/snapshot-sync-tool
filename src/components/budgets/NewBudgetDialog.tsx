@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Search, Plus, Trash2 } from "lucide-react";
+import { Loader2, Search, Plus, Trash2, CalendarIcon } from "lucide-react";
+import { format, addDays } from "date-fns";
+import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -72,6 +75,7 @@ const NewBudgetDialog = ({ open, onOpenChange, preselectedPatient }: NewBudgetDi
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(preselectedPatient || null);
   const [items, setItems] = useState<BudgetItem[]>([]);
   const [notes, setNotes] = useState("");
+  const [validUntil, setValidUntil] = useState<Date | undefined>(addDays(new Date(), 30));
   const [selectedTreatment, setSelectedTreatment] = useState("");
   const [customItemName, setCustomItemName] = useState("");
   const [customItemPrice, setCustomItemPrice] = useState("");
@@ -145,6 +149,7 @@ const NewBudgetDialog = ({ open, onOpenChange, preselectedPatient }: NewBudgetDi
           total: subtotal,
           status: "draft",
           notes: notes || null,
+          valid_until: validUntil ? format(validUntil, "yyyy-MM-dd") : null,
         })
         .select()
         .single();
@@ -182,6 +187,7 @@ const NewBudgetDialog = ({ open, onOpenChange, preselectedPatient }: NewBudgetDi
     setSelectedPatient(null);
     setItems([]);
     setNotes("");
+    setValidUntil(addDays(new Date(), 30));
     setSelectedTreatment("");
     setCustomItemName("");
     setCustomItemPrice("");
@@ -449,6 +455,31 @@ const NewBudgetDialog = ({ open, onOpenChange, preselectedPatient }: NewBudgetDi
               </div>
             </div>
           )}
+
+          {/* Valid until */}
+          <div className="space-y-2">
+            <Label>Válido hasta</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-left font-normal"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {validUntil ? format(validUntil, "PPP", { locale: es }) : "Seleccionar fecha"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={validUntil}
+                  onSelect={setValidUntil}
+                  disabled={(date) => date < new Date()}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
 
           {/* Notes */}
           <div className="space-y-2">
