@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
-import { Plus, Search, Filter, Eye, Loader2, FileText, CheckCircle, XCircle, Send, MoreHorizontal } from "lucide-react";
+import { Plus, Search, Filter, Eye, Loader2, FileText, CheckCircle, XCircle, Send, MoreHorizontal, Trash2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +35,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import AppLayout from "@/components/layout/AppLayout";
 import NewBudgetDialog from "@/components/budgets/NewBudgetDialog";
 import WhatsAppButton from "@/components/common/WhatsAppButton";
@@ -77,6 +87,7 @@ const Budgets = () => {
   const [showNewBudget, setShowNewBudget] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
+  const [budgetToDelete, setBudgetToDelete] = useState<Budget | null>(null);
 
   const { data: budgets = [], isLoading: loading } = useQuery({
     queryKey: ["budgets", profile?.clinic_id],
@@ -123,6 +134,32 @@ const Budgets = () => {
     },
     onError: (error) => {
       toast.error("Error al actualizar: " + error.message);
+    },
+  });
+
+  const deleteBudgetMutation = useMutation({
+    mutationFn: async (budgetId: string) => {
+      // First delete budget items
+      const { error: itemsError } = await supabase
+        .from("budget_items")
+        .delete()
+        .eq("budget_id", budgetId);
+      if (itemsError) throw itemsError;
+      
+      // Then delete the budget
+      const { error } = await supabase
+        .from("budgets")
+        .delete()
+        .eq("id", budgetId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["budgets"] });
+      toast.success("Presupuesto eliminado");
+      setBudgetToDelete(null);
+    },
+    onError: (error) => {
+      toast.error("Error al eliminar: " + error.message);
     },
   });
 
@@ -382,6 +419,14 @@ ${budget.valid_until ? `⏳ Válido hasta: ${new Date(budget.valid_until).toLoca
                               <DropdownMenuItem onClick={() => handleChangeStatus(budget.id, "draft")}>
                                 Volver a Borrador
                               </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                onClick={() => setBudgetToDelete(budget)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Eliminar
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -455,6 +500,35 @@ ${budget.valid_until ? `⏳ Válido hasta: ${new Date(budget.valid_until).toLoca
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!budgetToDelete} onOpenChange={(open) => !open && setBudgetToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar presupuesto?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción eliminará permanentemente el presupuesto 
+              #{budgetToDelete?.id.slice(0, 8).toUpperCase()} de{" "}
+              <strong>{budgetToDelete?.patients?.first_name} {budgetToDelete?.patients?.last_name}</strong>.
+              Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => budgetToDelete && deleteBudgetMutation.mutate(budgetToDelete.id)}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteBudgetMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Trash2 className="h-4 w-4 mr-2" />
+              )}
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 };
