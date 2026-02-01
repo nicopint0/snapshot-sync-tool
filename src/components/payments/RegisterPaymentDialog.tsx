@@ -108,7 +108,7 @@ const RegisterPaymentDialog = () => {
         .from("budgets")
         .select("id, total, status, created_at")
         .eq("patient_id", payment.patient_id)
-        .in("status", ["approved", "pending", "partial"])
+        .in("status", ["approved", "sent", "completed", "draft"])
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data as Budget[];
@@ -160,6 +160,11 @@ const RegisterPaymentDialog = () => {
     
     if (!payment.patient_id) {
       toast.error("Selecciona un paciente");
+      return;
+    }
+
+    if (!payment.budget_id) {
+      toast.error("Selecciona un presupuesto");
       return;
     }
     
@@ -237,29 +242,42 @@ const RegisterPaymentDialog = () => {
             </Popover>
           </div>
 
-          {/* Budget selector (optional) */}
-          {payment.patient_id && budgets.length > 0 && (
+          {/* Budget selector (required) */}
+          {payment.patient_id && (
             <div className="space-y-2">
-              <Label>Presupuesto asociado</Label>
-              <Select
-                value={payment.budget_id || "none"}
-                onValueChange={(v) =>
-                  setPayment({ ...payment, budget_id: v === "none" ? null : v })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Seleccionar presupuesto..." />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Sin presupuesto asociado</SelectItem>
-                  {budgets.map((budget) => (
-                    <SelectItem key={budget.id} value={budget.id}>
-                      {new Date(budget.created_at).toLocaleDateString("es-ES")} -{" "}
-                      ${budget.total?.toFixed(2) || "0.00"} ({budget.status})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>Presupuesto asociado *</Label>
+              {budgets.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Este paciente no tiene presupuestos disponibles
+                </p>
+              ) : (
+                <Select
+                  value={payment.budget_id || ""}
+                  onValueChange={(v) =>
+                    setPayment({ ...payment, budget_id: v || null })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar presupuesto..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {budgets.map((budget) => {
+                      const statusLabels: Record<string, string> = {
+                        draft: "Borrador",
+                        sent: "Enviado",
+                        approved: "Aprobado",
+                        completed: "Realizado",
+                      };
+                      return (
+                        <SelectItem key={budget.id} value={budget.id}>
+                          {new Date(budget.created_at).toLocaleDateString("es-ES")} -{" "}
+                          ${budget.total?.toLocaleString() || "0"} ({statusLabels[budget.status || "draft"] || budget.status})
+                        </SelectItem>
+                      );
+                    })}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
           )}
 

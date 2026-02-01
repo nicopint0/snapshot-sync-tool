@@ -50,11 +50,12 @@ interface Treatment {
 }
 
 interface BudgetItem {
-  treatment_id: string;
+  treatment_id: string | null;
   treatment_name: string;
   quantity: number;
   unit_price: number;
   total: number;
+  isCustom?: boolean;
 }
 
 interface NewBudgetDialogProps {
@@ -72,6 +73,8 @@ const NewBudgetDialog = ({ open, onOpenChange, preselectedPatient }: NewBudgetDi
   const [items, setItems] = useState<BudgetItem[]>([]);
   const [notes, setNotes] = useState("");
   const [selectedTreatment, setSelectedTreatment] = useState("");
+  const [customItemName, setCustomItemName] = useState("");
+  const [customItemPrice, setCustomItemPrice] = useState("");
 
   // Update selected patient when preselectedPatient changes or dialog opens
   useEffect(() => {
@@ -151,7 +154,7 @@ const NewBudgetDialog = ({ open, onOpenChange, preselectedPatient }: NewBudgetDi
       // Create budget items
       const budgetItems = items.map((item) => ({
         budget_id: budget.id,
-        treatment_id: item.treatment_id,
+        treatment_id: item.isCustom ? null : item.treatment_id,
         description: item.treatment_name,
         quantity: item.quantity,
         unit_price: item.unit_price,
@@ -180,6 +183,8 @@ const NewBudgetDialog = ({ open, onOpenChange, preselectedPatient }: NewBudgetDi
     setItems([]);
     setNotes("");
     setSelectedTreatment("");
+    setCustomItemName("");
+    setCustomItemPrice("");
   };
 
   const handleSelectPatient = (patient: Patient) => {
@@ -210,6 +215,41 @@ const NewBudgetDialog = ({ open, onOpenChange, preselectedPatient }: NewBudgetDi
       },
     ]);
     setSelectedTreatment("");
+  };
+
+  const handleAddCustomItem = () => {
+    if (!customItemName.trim() || !customItemPrice) {
+      toast.error("Ingresa nombre y precio del item");
+      return;
+    }
+    
+    const price = parseFloat(customItemPrice);
+    if (isNaN(price) || price <= 0) {
+      toast.error("Ingresa un precio válido");
+      return;
+    }
+    
+    setItems([
+      ...items,
+      {
+        treatment_id: null,
+        treatment_name: customItemName.trim(),
+        quantity: 1,
+        unit_price: price,
+        total: price,
+        isCustom: true,
+      },
+    ]);
+    setCustomItemName("");
+    setCustomItemPrice("");
+  };
+
+  const handleUpdatePrice = (index: number, price: number) => {
+    if (price < 0) return;
+    const newItems = [...items];
+    newItems[index].unit_price = price;
+    newItems[index].total = newItems[index].quantity * price;
+    setItems(newItems);
   };
 
   const handleUpdateQuantity = (index: number, quantity: number) => {
@@ -317,6 +357,36 @@ const NewBudgetDialog = ({ open, onOpenChange, preselectedPatient }: NewBudgetDi
               </Button>
             </div>
           </div>
+          {/* Add custom item */}
+          <div className="space-y-2">
+            <Label>Agregar Item Personalizado</Label>
+            <div className="flex gap-2">
+              <Input
+                placeholder="Descripción..."
+                className="flex-1"
+                value={customItemName}
+                onChange={(e) => setCustomItemName(e.target.value)}
+              />
+              <div className="relative w-28">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  $
+                </span>
+                <Input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  placeholder="Precio"
+                  className="pl-7"
+                  value={customItemPrice}
+                  onChange={(e) => setCustomItemPrice(e.target.value)}
+                />
+              </div>
+              <Button type="button" onClick={handleAddCustomItem} disabled={!customItemName.trim() || !customItemPrice}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
 
           {/* Items list */}
           {items.length > 0 && (
@@ -324,9 +394,12 @@ const NewBudgetDialog = ({ open, onOpenChange, preselectedPatient }: NewBudgetDi
               <Label>Tratamientos ({items.length})</Label>
               <div className="border rounded-lg divide-y">
                 {items.map((item, index) => (
-                  <div key={item.treatment_id} className="flex items-center gap-4 p-3">
+                  <div key={`${item.treatment_id || 'custom'}-${index}`} className="flex items-center gap-4 p-3">
                     <div className="flex-1">
-                      <p className="font-medium">{item.treatment_name}</p>
+                      <p className="font-medium">
+                        {item.treatment_name}
+                        {item.isCustom && <span className="ml-2 text-xs text-muted-foreground">(Personalizado)</span>}
+                      </p>
                       <p className="text-sm text-muted-foreground">
                         ${item.unit_price.toLocaleString()} c/u
                       </p>
@@ -335,10 +408,25 @@ const NewBudgetDialog = ({ open, onOpenChange, preselectedPatient }: NewBudgetDi
                       <Input
                         type="number"
                         min="1"
-                        className="w-20"
+                        className="w-16"
                         value={item.quantity}
                         onChange={(e) => handleUpdateQuantity(index, parseInt(e.target.value) || 1)}
                       />
+                      {item.isCustom && (
+                        <div className="relative w-24">
+                          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
+                            $
+                          </span>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            className="pl-5 w-full"
+                            value={item.unit_price}
+                            onChange={(e) => handleUpdatePrice(index, parseFloat(e.target.value) || 0)}
+                          />
+                        </div>
+                      )}
                       <span className="font-bold w-24 text-right">
                         ${item.total.toLocaleString()}
                       </span>
