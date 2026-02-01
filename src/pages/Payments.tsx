@@ -22,6 +22,7 @@ import { useAuth } from "@/hooks/useAuth";
 interface Payment {
   id: string;
   patient_id: string;
+  budget_id: string | null;
   amount: number;
   payment_method: string | null;
   payment_date: string | null;
@@ -30,6 +31,10 @@ interface Payment {
   patients?: {
     first_name: string;
     last_name: string;
+  };
+  budgets?: {
+    total: number | null;
+    created_at: string;
   };
 }
 
@@ -49,6 +54,10 @@ const Payments = () => {
           patients (
             first_name,
             last_name
+          ),
+          budgets (
+            total,
+            created_at
           )
         `)
         .eq("clinic_id", profile.clinic_id)
@@ -231,6 +240,7 @@ const Payments = () => {
                   <TableRow>
                     <TableHead>Fecha</TableHead>
                     <TableHead>Paciente</TableHead>
+                    <TableHead>Presupuesto</TableHead>
                     <TableHead>Monto</TableHead>
                     <TableHead>Método</TableHead>
                     <TableHead>Notas</TableHead>
@@ -250,6 +260,15 @@ const Payments = () => {
                       </TableCell>
                       <TableCell className="font-medium">
                         {payment.patients?.first_name} {payment.patients?.last_name}
+                      </TableCell>
+                      <TableCell>
+                        {payment.budgets ? (
+                          <span className="text-sm text-muted-foreground">
+                            {new Date(payment.budgets.created_at).toLocaleDateString("es-ES")} - ${payment.budgets.total?.toLocaleString() || "0"}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">-</span>
+                        )}
                       </TableCell>
                       <TableCell className="font-bold text-green-600 dark:text-green-400">
                         +${payment.amount.toLocaleString()}

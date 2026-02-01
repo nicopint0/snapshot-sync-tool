@@ -49,6 +49,8 @@ interface Budget {
   total: number | null;
   status: string | null;
   created_at: string;
+  paid?: number;
+  pending?: number;
 }
 
 interface PaymentData {
@@ -99,19 +101,48 @@ const RegisterPaymentDialog = () => {
     enabled: !!profile?.clinic_id && open,
   });
 
-  // Fetch patient budgets
+  // Fetch patient budgets with pending balance (not 100% paid)
   const { data: budgets = [] } = useQuery({
-    queryKey: ["patient-budgets", payment.patient_id],
+    queryKey: ["patient-budgets-with-balance", payment.patient_id],
     queryFn: async () => {
       if (!payment.patient_id) return [];
-      const { data, error } = await supabase
+      
+      // Get budgets
+      const { data: budgetsData, error: budgetsError } = await supabase
         .from("budgets")
         .select("id, total, status, created_at")
         .eq("patient_id", payment.patient_id)
         .in("status", ["approved", "sent", "completed", "draft"])
         .order("created_at", { ascending: false });
-      if (error) throw error;
-      return data as Budget[];
+      
+      if (budgetsError) throw budgetsError;
+      if (!budgetsData || budgetsData.length === 0) return [];
+      
+      // Get all payments for these budgets
+      const budgetIds = budgetsData.map(b => b.id);
+      const { data: paymentsData, error: paymentsError } = await supabase
+        .from("payments")
+        .select("budget_id, amount")
+        .in("budget_id", budgetIds);
+      
+      if (paymentsError) throw paymentsError;
+      
+      // Calculate paid amount per budget
+      const paidByBudget: Record<string, number> = {};
+      (paymentsData || []).forEach(p => {
+        if (p.budget_id) {
+          paidByBudget[p.budget_id] = (paidByBudget[p.budget_id] || 0) + p.amount;
+        }
+      });
+      
+      // Filter budgets that have pending balance
+      return budgetsData
+        .map(b => ({
+          ...b,
+          paid: paidByBudget[b.id] || 0,
+          pending: (b.total || 0) - (paidByBudget[b.id] || 0),
+        }))
+        .filter(b => b.pending > 0) as (Budget & { paid: number; pending: number })[];
     },
     enabled: !!payment.patient_id,
   });
@@ -242,13 +273,13 @@ const RegisterPaymentDialog = () => {
             </Popover>
           </div>
 
-          {/* Budget selector (required) */}
+          {/* Budget selector (required) - only budgets with pending balance */}
           {payment.patient_id && (
             <div className="space-y-2">
               <Label>Presupuesto asociado *</Label>
               {budgets.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  Este paciente no tiene presupuestos disponibles
+                  Este paciente no tiene presupuestos con saldo pendiente
                 </p>
               ) : (
                 <Select
@@ -270,8 +301,10 @@ const RegisterPaymentDialog = () => {
                       };
                       return (
                         <SelectItem key={budget.id} value={budget.id}>
-                          {new Date(budget.created_at).toLocaleDateString("es-ES")} -{" "}
-                          ${budget.total?.toLocaleString() || "0"} ({statusLabels[budget.status || "draft"] || budget.status})
+                          {new Date(budget.created_at).toLocaleDateString("es-ES")} - 
+                          Total: ${budget.total?.toLocaleString() || "0"} | 
+                          Pendiente: ${budget.pending?.toLocaleString() || "0"} 
+                          ({statusLabels[budget.status || "draft"] || budget.status})
                         </SelectItem>
                       );
                     })}
