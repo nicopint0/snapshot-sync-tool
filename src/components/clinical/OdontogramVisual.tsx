@@ -113,7 +113,7 @@ const OdontogramVisual = forwardRef<HTMLDivElement, OdontogramVisualProps>(
     };
 
     return (
-      <div ref={ref} className="bg-card rounded-xl p-6 border print:border-none print:p-2">
+      <div ref={ref} className="bg-card rounded-xl p-6 border print:border-none print:p-2 print:bg-white print:block">
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6 print:mb-4">
           <div>

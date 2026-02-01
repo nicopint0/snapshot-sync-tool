@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -38,10 +38,12 @@ import { toast } from "sonner";
 import AppLayout from "@/components/layout/AppLayout";
 import OdontogramVisual from "@/components/clinical/OdontogramVisual";
 import PatientHeader from "@/components/print/PatientHeader";
+import BudgetPrintSelector from "@/components/print/BudgetPrintSelector";
 import EditPatientForm from "@/components/patients/EditPatientForm";
 import NewBudgetDialog from "@/components/budgets/NewBudgetDialog";
 import { usePrint } from "@/hooks/usePrint";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Database } from "@/integrations/supabase/types";
 
 interface Patient {
@@ -82,17 +84,41 @@ const PatientDetail = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
+  const { profile } = useAuth();
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(location.pathname.endsWith("/edit"));
   const [activeTab, setActiveTab] = useState("summary");
   const [showBudgetDialog, setShowBudgetDialog] = useState(false);
+  const [showBudgetPrintSelector, setShowBudgetPrintSelector] = useState(false);
+  const [selectedBudgetToPrint, setSelectedBudgetToPrint] = useState<any>(null);
   
   // Refs for printing
   const odontogramRef = useRef<HTMLDivElement>(null);
   const summaryRef = useRef<HTMLDivElement>(null);
   const budgetsRef = useRef<HTMLDivElement>(null);
   const fullReportRef = useRef<HTMLDivElement>(null);
+  const singleBudgetRef = useRef<HTMLDivElement>(null);
+
+  // Fetch clinic info
+  const { data: clinicData } = useQuery({
+    queryKey: ["clinic", profile?.clinic_id],
+    queryFn: async () => {
+      if (!profile?.clinic_id) return null;
+      const { data, error } = await supabase
+        .from("clinics")
+        .select("name")
+        .eq("id", profile.clinic_id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!profile?.clinic_id,
+  });
+
+  // Get professional name from profile
+  const professionalName = profile ? `${profile.first_name} ${profile.last_name}` : "";
+  const clinicName = clinicData?.name || "";
   
   // Print hooks for each section
   const { contentRef: printOdontogramRef, handlePrint: printOdontogram } = usePrint<HTMLDivElement>({
@@ -103,13 +129,22 @@ const PatientDetail = () => {
     title: `Resumen - ${patient?.first_name} ${patient?.last_name}`,
   });
   
-  const { contentRef: printBudgetsRef, handlePrint: printBudgets } = usePrint<HTMLDivElement>({
-    title: `Presupuestos - ${patient?.first_name} ${patient?.last_name}`,
+  const { contentRef: printBudgetsRef, handlePrint: printSingleBudget } = usePrint<HTMLDivElement>({
+    title: `Presupuesto - ${patient?.first_name} ${patient?.last_name}`,
   });
   
   const { contentRef: printFullRef, handlePrint: printFullReport } = usePrint<HTMLDivElement>({
     title: `Ficha Clínica - ${patient?.first_name} ${patient?.last_name}`,
   });
+
+  // Handle budget selection for printing
+  const handleSelectBudgetToPrint = useCallback((budget: any) => {
+    setSelectedBudgetToPrint(budget);
+    // Small delay to ensure state is updated before printing
+    setTimeout(() => {
+      printSingleBudget();
+    }, 100);
+  }, [printSingleBudget]);
 
   // Fetch patient
   useEffect(() => {
@@ -340,8 +375,8 @@ const PatientDetail = () => {
                   <DropdownMenuItem onClick={printOdontogram}>
                     Solo Odontograma
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={printBudgets}>
-                    Solo Presupuestos
+                  <DropdownMenuItem onClick={() => setShowBudgetPrintSelector(true)}>
+                    Seleccionar Presupuesto
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -386,7 +421,7 @@ const PatientDetail = () => {
 
             <TabsContent value="summary" className="space-y-6">
               <div ref={printSummaryRef}>
-                <PatientHeader patient={patient} />
+                <PatientHeader patient={patient} clinicName={clinicName} professionalName={professionalName} />
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 print:grid-cols-2 print:gap-4">
                 {/* Contact Info */}
                 <Card className="print:border print:shadow-none">
@@ -513,7 +548,7 @@ const PatientDetail = () => {
 
           <TabsContent value="odontogram">
             <div ref={printOdontogramRef}>
-              <PatientHeader patient={patient} />
+              <PatientHeader patient={patient} clinicName={clinicName} professionalName={professionalName} />
               <OdontogramVisual
                 patientId={id}
                 data={odontogramData.map(o => ({
@@ -530,7 +565,7 @@ const PatientDetail = () => {
 
           <TabsContent value="budgets">
             <div ref={printBudgetsRef}>
-              <PatientHeader patient={patient} />
+              <PatientHeader patient={patient} clinicName={clinicName} professionalName={professionalName} />
               <Card className="print:border print:shadow-none">
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="text-lg flex items-center gap-2">
@@ -694,7 +729,7 @@ const PatientDetail = () => {
         )}
         {/* Hidden full report container for printing all sections */}
         <div ref={printFullRef} className="hidden">
-          <PatientHeader patient={patient} />
+          <PatientHeader patient={patient} clinicName={clinicName} professionalName={professionalName} />
           
           {/* Summary section */}
           <div className="mb-6">
@@ -717,7 +752,7 @@ const PatientDetail = () => {
           </div>
           
           {/* Odontogram section */}
-          <div className="mb-6">
+          <div className="mb-6 print:block">
             <h2 className="text-lg font-bold mb-4 border-b pb-2">Odontograma</h2>
             <OdontogramVisual
               patientId={id}
@@ -743,6 +778,7 @@ const PatientDetail = () => {
                     <div className="flex justify-between mb-2">
                       <span className="font-medium">
                         {budget.status === "approved" ? "Aprobado" :
+                         budget.status === "completed" ? "Realizado" :
                          budget.status === "sent" ? "Enviado" : "Borrador"}
                       </span>
                       <span className="font-bold">${budget.total?.toLocaleString() || 0}</span>
@@ -767,11 +803,89 @@ const PatientDetail = () => {
             )}
           </div>
         </div>
+        
+        {/* Hidden single budget container for printing selected budget */}
+        <div ref={printBudgetsRef} className="hidden">
+          <PatientHeader patient={patient} clinicName={clinicName} professionalName={professionalName} />
+          {selectedBudgetToPrint && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-bold border-b pb-2">Presupuesto</h2>
+              <div className="border rounded p-4">
+                <div className="flex justify-between mb-4">
+                  <div>
+                    <span className="font-medium text-lg">
+                      {selectedBudgetToPrint.status === "approved" ? "Aprobado" :
+                       selectedBudgetToPrint.status === "completed" ? "Realizado" :
+                       selectedBudgetToPrint.status === "sent" ? "Enviado" : "Borrador"}
+                    </span>
+                    <p className="text-sm text-muted-foreground">
+                      Fecha: {new Date(selectedBudgetToPrint.created_at).toLocaleDateString("es-ES", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric"
+                      })}
+                    </p>
+                  </div>
+                </div>
+                
+                {selectedBudgetToPrint.budget_items && selectedBudgetToPrint.budget_items.length > 0 && (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-2">Descripción</th>
+                        <th className="text-center py-2">Cant.</th>
+                        <th className="text-right py-2">P. Unit.</th>
+                        <th className="text-right py-2">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {selectedBudgetToPrint.budget_items.map((item: any) => (
+                        <tr key={item.id} className="border-b">
+                          <td className="py-2">{item.description}</td>
+                          <td className="text-center py-2">{item.quantity}</td>
+                          <td className="text-right py-2">${item.unit_price?.toLocaleString()}</td>
+                          <td className="text-right py-2">${item.total?.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+                
+                <div className="mt-4 pt-4 border-t">
+                  {selectedBudgetToPrint.discount_percent > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span>Descuento ({selectedBudgetToPrint.discount_percent}%):</span>
+                      <span>-${((selectedBudgetToPrint.subtotal || 0) * selectedBudgetToPrint.discount_percent / 100).toLocaleString()}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-bold text-lg mt-2">
+                    <span>Total:</span>
+                    <span>${selectedBudgetToPrint.total?.toLocaleString() || 0}</span>
+                  </div>
+                </div>
+                
+                {selectedBudgetToPrint.notes && (
+                  <div className="mt-4 pt-4 border-t">
+                    <p className="text-sm"><strong>Notas:</strong> {selectedBudgetToPrint.notes}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+        
         {/* Dialogs */}
         <NewBudgetDialog
           open={showBudgetDialog}
           onOpenChange={setShowBudgetDialog}
           preselectedPatient={patient ? { id: patient.id, first_name: patient.first_name, last_name: patient.last_name } : null}
+        />
+        
+        <BudgetPrintSelector
+          open={showBudgetPrintSelector}
+          onOpenChange={setShowBudgetPrintSelector}
+          budgets={patientBudgets}
+          onSelectBudget={handleSelectBudgetToPrint}
         />
       </motion.div>
     </AppLayout>
