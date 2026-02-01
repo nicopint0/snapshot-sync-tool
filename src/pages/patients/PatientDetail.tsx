@@ -153,6 +153,41 @@ const PatientDetail = () => {
     enabled: !!id,
   });
 
+  // Fetch patient budgets
+  const { data: patientBudgets = [] } = useQuery({
+    queryKey: ["patient-budgets", id],
+    queryFn: async () => {
+      if (!id) return [];
+      const { data, error } = await supabase
+        .from("budgets")
+        .select(`
+          *,
+          budget_items(id, description, quantity, unit_price, total)
+        `)
+        .eq("patient_id", id)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
+
+  // Fetch patient payments
+  const { data: patientPayments = [] } = useQuery({
+    queryKey: ["patient-payments", id],
+    queryFn: async () => {
+      if (!id) return [];
+      const { data, error } = await supabase
+        .from("payments")
+        .select("*")
+        .eq("patient_id", id)
+        .order("payment_date", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
+
   // Save odontogram mutation
   const saveOdontogramMutation = useMutation({
     mutationFn: async (teethData: { tooth_number: number; condition: string; notes?: string }[]) => {
@@ -326,13 +361,12 @@ const PatientDetail = () => {
           />
         ) : (
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3 md:grid-cols-6 lg:w-auto lg:inline-grid">
+            <TabsList className="grid w-full grid-cols-3 md:grid-cols-5 lg:w-auto lg:inline-grid">
               <TabsTrigger value="summary">Resumen</TabsTrigger>
               <TabsTrigger value="odontogram">Odontograma</TabsTrigger>
               <TabsTrigger value="treatments">Tratamientos</TabsTrigger>
               <TabsTrigger value="budgets">Presupuestos</TabsTrigger>
               <TabsTrigger value="payments">Pagos</TabsTrigger>
-              <TabsTrigger value="documents">Documentos</TabsTrigger>
             </TabsList>
 
             <TabsContent value="summary" className="space-y-6">
@@ -506,7 +540,7 @@ const PatientDetail = () => {
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="text-lg flex items-center gap-2">
                     <FileText className="h-5 w-5" />
-                    Presupuestos
+                    Presupuestos ({patientBudgets.length})
                   </CardTitle>
                   <Button size="sm" onClick={() => setShowBudgetDialog(true)} className="print:hidden">
                     <Plus className="h-4 w-4 mr-2" />
@@ -514,10 +548,105 @@ const PatientDetail = () => {
                   </Button>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground">No hay presupuestos registrados para este paciente</p>
+                  {patientBudgets.length === 0 ? (
+                    <p className="text-muted-foreground">No hay presupuestos registrados para este paciente</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {patientBudgets.map((budget) => (
+                        <Card key={budget.id} className="border">
+                          <CardContent className="pt-4">
+                            <div className="flex items-start justify-between">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <Badge variant={
+                                    budget.status === "approved" ? "default" :
+                                    budget.status === "sent" ? "secondary" :
+                                    budget.status === "rejected" ? "destructive" :
+                                    "outline"
+                                  }>
+                                    {budget.status === "approved" ? "Aprobado" :
+                                     budget.status === "sent" ? "Enviado" :
+                                     budget.status === "rejected" ? "Rechazado" :
+                                     "Borrador"}
+                                  </Badge>
+                                  <span className="text-sm text-muted-foreground">
+                                    {new Date(budget.created_at).toLocaleDateString("es-ES")}
+                                  </span>
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                  {budget.budget_items?.length || 0} items
+                                </p>
+                                {budget.notes && (
+                                  <p className="text-sm text-muted-foreground">{budget.notes}</p>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                <p className="text-lg font-bold">${budget.total?.toLocaleString() || 0}</p>
+                                {budget.discount_percent > 0 && (
+                                  <p className="text-xs text-muted-foreground">
+                                    -{budget.discount_percent}% descuento
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            {budget.budget_items && budget.budget_items.length > 0 && (
+                              <div className="mt-4 border-t pt-4">
+                                <p className="text-sm font-medium mb-2">Detalle:</p>
+                                <ul className="text-sm space-y-1">
+                                  {budget.budget_items.map((item: any) => (
+                                    <li key={item.id} className="flex justify-between">
+                                      <span>{item.description} x{item.quantity}</span>
+                                      <span className="text-muted-foreground">${item.total?.toLocaleString()}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          <TabsContent value="payments">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" />
+                  Historial de Pagos ({patientPayments.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {patientPayments.length === 0 ? (
+                  <p className="text-muted-foreground">No hay pagos registrados para este paciente</p>
+                ) : (
+                  <div className="space-y-3">
+                    {patientPayments.map((payment) => (
+                      <div key={payment.id} className="flex items-center justify-between p-3 border rounded-lg">
+                        <div>
+                          <p className="font-medium">${payment.amount.toLocaleString()}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(payment.payment_date).toLocaleDateString("es-ES")} • {
+                              payment.payment_method === "cash" ? "Efectivo" :
+                              payment.payment_method === "card" ? "Tarjeta" :
+                              payment.payment_method === "transfer" ? "Transferencia" :
+                              payment.payment_method
+                            }
+                          </p>
+                          {payment.notes && (
+                            <p className="text-sm text-muted-foreground">{payment.notes}</p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="payments">
@@ -534,19 +663,6 @@ const PatientDetail = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="documents">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Documentos y Radiografías
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground">No hay documentos subidos para este paciente</p>
-              </CardContent>
-            </Card>
-            </TabsContent>
           </Tabs>
         )}
         {/* Hidden full report container for printing all sections */}
