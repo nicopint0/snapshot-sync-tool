@@ -21,9 +21,9 @@ const WhatsAppButton = ({
   // Encode message for URL (supports spaces, accents, emojis)
   const encodedMessage = encodeURIComponent(defaultMessage);
   
-  // Build WhatsApp Web URL - opens directly in browser
-  // Format: https://web.whatsapp.com/send?phone=XXXXXXXXXXX&text=urlencodedtext
-  const whatsappUrl = `https://web.whatsapp.com/send?phone=${cleanPhone}&text=${encodedMessage}`;
+  // Build WhatsApp URL following official format
+  // Example: https://wa.me/56955275886?text=I%27m%20interested%20in%20your%20car%20for%20sale
+  const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodedMessage}`;
 
   const handleClick = (e: React.MouseEvent) => {
     if (onClick) {
