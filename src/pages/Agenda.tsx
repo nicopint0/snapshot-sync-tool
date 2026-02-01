@@ -358,7 +358,7 @@ const Agenda = () => {
               </CardContent>
             </Card>
 
-            {/* Day Schedule */}
+            {/* Day Schedule - Timeline View */}
             <Card className="lg:col-span-3">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg flex items-center gap-2">
@@ -367,37 +367,56 @@ const Agenda = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  {hours.map((hour) => {
-                    const hourAppointments = getAppointmentsForHour(selectedDate, hour);
+                <div className="relative">
+                  {/* Hour markers */}
+                  {hours.map((hour) => (
+                    <div key={hour} className="flex border-t border-border" style={{ height: "60px" }}>
+                      <div className="w-16 text-sm text-muted-foreground shrink-0 -mt-2">
+                        {`${hour.toString().padStart(2, "0")}:00`}
+                      </div>
+                      <div className="flex-1 relative"></div>
+                    </div>
+                  ))}
+                  
+                  {/* Appointments positioned absolutely based on time */}
+                  {todayAppointments.map((apt) => {
+                    const aptDate = new Date(apt.scheduled_at);
+                    const aptHour = aptDate.getHours();
+                    const aptMinutes = aptDate.getMinutes();
+                    
+                    // Calculate position: each hour is 60px, minutes are proportional
+                    const startHour = hours[0];
+                    const topPosition = ((aptHour - startHour) * 60) + aptMinutes;
+                    const height = apt.duration; // 1 minute = 1px
+                    
+                    // Skip if outside visible hours
+                    if (aptHour < startHour || aptHour >= startHour + hours.length) {
+                      return null;
+                    }
+                    
                     return (
-                      <div key={hour} className="flex gap-4 py-3 border-b border-border last:border-0">
-                        <div className="w-16 text-sm text-muted-foreground shrink-0">
-                          {`${hour.toString().padStart(2, "0")}:00`}
-                        </div>
-                        <div className="flex-1 min-h-[40px] space-y-2">
-                          {hourAppointments.map((apt) => (
-                            <div
-                              key={apt.id}
-                              onClick={() => handleAppointmentClick(apt)}
-                              className="p-3 rounded-lg bg-primary/5 border border-primary/20 hover:bg-primary/10 cursor-pointer transition-colors"
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                  <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                                    <Clock className="h-4 w-4" />
-                                    {apt.time} - {apt.duration}min
-                                  </div>
-                                  <span className="font-medium">{apt.patient_name}</span>
-                                </div>
-                                {getStatusBadge(apt.status)}
-                              </div>
-                              <p className="text-sm text-muted-foreground mt-1">
-                                {apt.treatment} • {apt.dentist}
-                              </p>
+                      <div
+                        key={apt.id}
+                        onClick={() => handleAppointmentClick(apt)}
+                        className="absolute left-16 right-2 p-2 rounded-lg bg-primary/10 border border-primary/30 hover:bg-primary/20 cursor-pointer transition-colors z-10"
+                        style={{
+                          top: `${topPosition}px`,
+                          minHeight: `${Math.max(height, 30)}px`,
+                        }}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+                              <Clock className="h-3 w-3" />
+                              {apt.time}
                             </div>
-                          ))}
+                            <span className="font-medium text-sm truncate">{apt.patient_name}</span>
+                          </div>
+                          {getStatusBadge(apt.status)}
                         </div>
+                        <p className="text-xs text-muted-foreground mt-1 truncate">
+                          {apt.treatment} • {apt.duration}min • {apt.dentist}
+                        </p>
                       </div>
                     );
                   })}
