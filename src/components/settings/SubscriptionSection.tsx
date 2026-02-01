@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Check, Users, MapPin, Headphones, Building2, Crown } from "lucide-react";
+import { Check, Users, MapPin, Headphones, Building2, Crown, Loader2, CreditCard, ExternalLink } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -11,6 +11,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useSubscription } from "@/hooks/useSubscription";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
 interface Plan {
   id: string;
@@ -82,15 +85,21 @@ const plans: Plan[] = [
   },
 ];
 
-interface SubscriptionSectionProps {
-  currentPlan: string;
-  onPlanChange: (plan: string) => void;
-}
-
-const SubscriptionSection = ({ currentPlan, onPlanChange }: SubscriptionSectionProps) => {
+const SubscriptionSection = () => {
   const { i18n } = useTranslation();
   const [showChangePlan, setShowChangePlan] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const {
+    subscribed,
+    plan: currentPlan,
+    subscriptionEnd,
+    isLoading,
+    createCheckout,
+    openCustomerPortal,
+    checkSubscription,
+  } = useSubscription();
 
   const isSpanish = i18n.language === "es" || i18n.language === "pt";
 
@@ -105,19 +114,50 @@ const SubscriptionSection = ({ currentPlan, onPlanChange }: SubscriptionSectionP
     return isSpanish ? "CLP" : "USD";
   };
 
-  const getCurrentPlan = () => plans.find((p) => p.id === currentPlan);
+  const getCurrentPlan = () => {
+    if (!subscribed || currentPlan === "free") {
+      return null;
+    }
+    return plans.find((p) => p.id === currentPlan);
+  };
 
   const handleSelectPlan = (planId: string) => {
     setSelectedPlan(planId);
   };
 
-  const handleConfirmChange = () => {
-    if (selectedPlan) {
-      onPlanChange(selectedPlan);
-      setShowChangePlan(false);
-      setSelectedPlan(null);
+  const handleConfirmChange = async () => {
+    if (!selectedPlan) return;
+    
+    setIsProcessing(true);
+    try {
+      const success = await createCheckout(selectedPlan);
+      if (success) {
+        setShowChangePlan(false);
+        setSelectedPlan(null);
+      }
+    } finally {
+      setIsProcessing(false);
     }
   };
+
+  const handleManageSubscription = async () => {
+    setIsProcessing(true);
+    try {
+      await openCustomerPortal();
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-48">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const activePlan = getCurrentPlan();
 
   return (
     <div className="space-y-6">
@@ -128,45 +168,96 @@ const SubscriptionSection = ({ currentPlan, onPlanChange }: SubscriptionSectionP
           <CardDescription>Detalles de tu suscripción actual</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-primary/10">
-                  <Crown className="h-5 w-5 text-primary" />
+          {activePlan ? (
+            <>
+              <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-full bg-primary/10">
+                      <Crown className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-lg">Plan {activePlan.name}</p>
+                      <p className="text-sm text-muted-foreground">Facturación mensual</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-2xl">{formatPrice(activePlan)}</p>
+                    <p className="text-sm text-muted-foreground">/{getCurrency()} /mes</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="font-bold text-lg">Plan {getCurrentPlan()?.name}</p>
-                  <p className="text-sm text-muted-foreground">Facturación mensual</p>
+                
+                <div className="mt-4 pt-4 border-t border-border/50 grid grid-cols-3 gap-4 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <span>{activePlan.professionals} profesional(es)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span>{activePlan.locations} ubicación(es)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Headphones className="h-4 w-4 text-muted-foreground" />
+                    <span>Soporte {activePlan.support}</span>
+                  </div>
                 </div>
+
+                {subscriptionEnd && (
+                  <div className="mt-4 pt-4 border-t border-border/50">
+                    <p className="text-sm text-muted-foreground">
+                      Próxima renovación: {format(new Date(subscriptionEnd), "d 'de' MMMM, yyyy", { locale: es })}
+                    </p>
+                  </div>
+                )}
               </div>
-              <div className="text-right">
-                <p className="font-bold text-2xl">{formatPrice(getCurrentPlan()!)}</p>
-                <p className="text-sm text-muted-foreground">/{getCurrency()} /mes</p>
+
+              <div className="flex gap-2 mt-4">
+                <Button 
+                  onClick={() => setShowChangePlan(true)} 
+                  variant="outline" 
+                  className="flex-1"
+                >
+                  Cambiar Plan
+                </Button>
+                <Button 
+                  onClick={handleManageSubscription}
+                  variant="secondary"
+                  disabled={isProcessing}
+                  className="flex-1"
+                >
+                  {isProcessing ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  ) : (
+                    <CreditCard className="h-4 w-4 mr-2" />
+                  )}
+                  Gestionar Suscripción
+                </Button>
               </div>
+            </>
+          ) : (
+            <div className="p-6 rounded-lg bg-muted/50 border border-dashed text-center">
+              <div className="mx-auto p-3 rounded-full bg-muted w-fit mb-4">
+                <Crown className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <h3 className="font-semibold text-lg mb-2">Plan Gratuito</h3>
+              <p className="text-muted-foreground mb-4">
+                Actualmente estás usando el plan gratuito con funcionalidades limitadas.
+                Mejora a un plan premium para desbloquear todas las características.
+              </p>
+              <Button onClick={() => setShowChangePlan(true)}>
+                <Crown className="h-4 w-4 mr-2" />
+                Elegir un Plan
+              </Button>
             </div>
-            
-            <div className="mt-4 pt-4 border-t border-border/50 grid grid-cols-3 gap-4 text-sm">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-muted-foreground" />
-                <span>{getCurrentPlan()?.professionals} profesional(es)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
-                <span>{getCurrentPlan()?.locations} ubicación(es)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Headphones className="h-4 w-4 text-muted-foreground" />
-                <span>Soporte {getCurrentPlan()?.support}</span>
-              </div>
-            </div>
-          </div>
+          )}
 
           <Button 
-            onClick={() => setShowChangePlan(true)} 
-            variant="outline" 
-            className="w-full mt-4"
+            onClick={checkSubscription} 
+            variant="ghost" 
+            size="sm" 
+            className="mt-4 w-full text-muted-foreground"
           >
-            Cambiar Plan
+            Actualizar estado de suscripción
           </Button>
         </CardContent>
       </Card>
@@ -175,7 +266,7 @@ const SubscriptionSection = ({ currentPlan, onPlanChange }: SubscriptionSectionP
       <Dialog open={showChangePlan} onOpenChange={setShowChangePlan}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Cambiar Plan</DialogTitle>
+            <DialogTitle>Elegir Plan</DialogTitle>
             <DialogDescription>
               Selecciona el plan que mejor se adapte a las necesidades de tu clínica
             </DialogDescription>
@@ -199,7 +290,7 @@ const SubscriptionSection = ({ currentPlan, onPlanChange }: SubscriptionSectionP
                     Más Popular
                   </Badge>
                 )}
-                {currentPlan === plan.id && (
+                {currentPlan === plan.id && subscribed && (
                   <Badge variant="secondary" className="absolute -top-2 right-2">
                     Actual
                   </Badge>
@@ -231,9 +322,9 @@ const SubscriptionSection = ({ currentPlan, onPlanChange }: SubscriptionSectionP
                   <Button
                     className="w-full mt-4"
                     variant={selectedPlan === plan.id ? "default" : "outline"}
-                    disabled={currentPlan === plan.id}
+                    disabled={currentPlan === plan.id && subscribed}
                   >
-                    {currentPlan === plan.id
+                    {currentPlan === plan.id && subscribed
                       ? "Plan Actual"
                       : selectedPlan === plan.id
                       ? "Seleccionado"
@@ -244,21 +335,31 @@ const SubscriptionSection = ({ currentPlan, onPlanChange }: SubscriptionSectionP
             ))}
           </div>
 
-          {selectedPlan && selectedPlan !== currentPlan && (
+          {selectedPlan && (currentPlan !== selectedPlan || !subscribed) && (
             <div className="mt-6 p-4 rounded-lg bg-muted/50 border">
               <p className="text-sm text-center mb-4">
-                ¿Confirmar cambio al plan <strong>{plans.find(p => p.id === selectedPlan)?.name}</strong>?
+                ¿Confirmar suscripción al plan <strong>{plans.find(p => p.id === selectedPlan)?.name}</strong>?
                 <br />
                 <span className="text-muted-foreground">
-                  Se aplicará en tu próximo ciclo de facturación
+                  Serás redirigido a la página de pago segura
                 </span>
               </p>
               <div className="flex gap-2 justify-center">
-                <Button variant="outline" onClick={() => setSelectedPlan(null)}>
+                <Button variant="outline" onClick={() => setSelectedPlan(null)} disabled={isProcessing}>
                   Cancelar
                 </Button>
-                <Button onClick={handleConfirmChange}>
-                  Confirmar Cambio
+                <Button onClick={handleConfirmChange} disabled={isProcessing}>
+                  {isProcessing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      Procesando...
+                    </>
+                  ) : (
+                    <>
+                      <ExternalLink className="h-4 w-4 mr-2" />
+                      Ir al Pago
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
