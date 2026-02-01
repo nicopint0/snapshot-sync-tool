@@ -15,6 +15,7 @@ import {
   PlayCircle,
   Check,
   Loader2,
+  Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import AppLayout from "@/components/layout/AppLayout";
 import NewAppointmentModal from "@/components/appointments/NewAppointmentModal";
+import EditAppointmentModal from "@/components/appointments/EditAppointmentModal";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -67,6 +69,7 @@ const Appointments = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<"day" | "week" | "month">("day");
   const [showNewAppointment, setShowNewAppointment] = useState(false);
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
 
   // Fetch real appointments from database
   const { data: allAppointments = [], isLoading } = useQuery({
@@ -94,15 +97,30 @@ const Appointments = () => {
   // Update appointment status mutation
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: "scheduled" | "confirmed" | "in_progress" | "completed" | "cancelled" | "no_show" }) => {
+      // If cancelled, delete the appointment instead of updating status
+      if (status === "cancelled") {
+        const { error } = await supabase
+          .from("appointments")
+          .delete()
+          .eq("id", id);
+        if (error) throw error;
+        return { deleted: true };
+      }
+      
       const { error } = await supabase
         .from("appointments")
         .update({ status })
         .eq("id", id);
       if (error) throw error;
+      return { deleted: false };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
-      toast.success("Estado de cita actualizado");
+      if (result?.deleted) {
+        toast.success("Cita cancelada y eliminada");
+      } else {
+        toast.success("Estado de cita actualizado");
+      }
     },
     onError: (error) => {
       toast.error("Error al actualizar: " + error.message);
@@ -302,6 +320,13 @@ const Appointments = () => {
           onOpenChange={setShowNewAppointment}
         />
 
+        {/* Edit Appointment Modal */}
+        <EditAppointmentModal
+          open={!!editingAppointment}
+          onOpenChange={(open) => !open && setEditingAppointment(null)}
+          appointment={editingAppointment}
+        />
+
         {/* Calendar controls */}
         <motion.div variants={itemVariants}>
           <Card>
@@ -414,6 +439,14 @@ const Appointments = () => {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingAppointment(apt);
+                                  }}>
+                                    <Pencil className="mr-2 h-4 w-4" />
+                                    Editar cita
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
                                   <DropdownMenuItem onClick={() => handleStatusChange(apt.id, "confirmed")}>
                                     <CheckCircle className="mr-2 h-4 w-4 text-green-600" />
                                     Confirmar
@@ -435,7 +468,7 @@ const Appointments = () => {
                                     className="text-destructive"
                                   >
                                     <XCircle className="mr-2 h-4 w-4" />
-                                    Cancelar
+                                    Cancelar y eliminar
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
