@@ -56,13 +56,14 @@ serve(async (req) => {
         
         if (!testResponse.ok) {
           const errorData = await testResponse.json();
+          // Return 200 with success: false so frontend handles gracefully
           return new Response(
             JSON.stringify({ 
               success: false, 
               error: errorData.message || "API key inválida",
               code: "API_KEY_INVALID"
             }),
-            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+            { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
         
@@ -77,7 +78,7 @@ serve(async (req) => {
             error: "No se pudo conectar con Resend",
             code: "CONNECTION_ERROR"
           }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
     }
