@@ -2,11 +2,14 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+export type PaymentProvider = "stripe" | "mercadopago";
+
 export interface SubscriptionStatus {
   subscribed: boolean;
   plan: string;
   productId: string | null;
   subscriptionEnd: string | null;
+  provider: PaymentProvider | null;
   isLoading: boolean;
 }
 
@@ -16,6 +19,7 @@ export function useSubscription() {
     plan: "free",
     productId: null,
     subscriptionEnd: null,
+    provider: null,
     isLoading: true,
   });
 
@@ -23,26 +27,43 @@ export function useSubscription() {
     try {
       setStatus((prev) => ({ ...prev, isLoading: true }));
       
-      const { data, error } = await supabase.functions.invoke("check-subscription");
+      // Check Stripe first
+      const { data: stripeData, error: stripeError } = await supabase.functions.invoke("check-subscription");
       
-      if (error) {
-        console.error("Error checking subscription:", error);
-        // Don't show error toast on initial load - just set free plan
+      if (!stripeError && stripeData?.subscribed) {
         setStatus({
-          subscribed: false,
-          plan: "free",
-          productId: null,
-          subscriptionEnd: null,
+          subscribed: true,
+          plan: stripeData.plan || "individual",
+          productId: stripeData.product_id,
+          subscriptionEnd: stripeData.subscription_end,
+          provider: "stripe",
           isLoading: false,
         });
         return;
       }
 
+      // Check MercadoPago if no Stripe subscription
+      const { data: mpData, error: mpError } = await supabase.functions.invoke("check-mp-subscription");
+      
+      if (!mpError && mpData?.subscribed) {
+        setStatus({
+          subscribed: true,
+          plan: mpData.plan || "individual",
+          productId: mpData.payment_id || null,
+          subscriptionEnd: mpData.subscription_end,
+          provider: "mercadopago",
+          isLoading: false,
+        });
+        return;
+      }
+
+      // No active subscription
       setStatus({
-        subscribed: data.subscribed,
-        plan: data.plan || "free",
-        productId: data.product_id,
-        subscriptionEnd: data.subscription_end,
+        subscribed: false,
+        plan: "free",
+        productId: null,
+        subscriptionEnd: null,
+        provider: null,
         isLoading: false,
       });
     } catch (err) {
@@ -52,14 +73,17 @@ export function useSubscription() {
         plan: "free",
         productId: null,
         subscriptionEnd: null,
+        provider: null,
         isLoading: false,
       });
     }
   }, []);
 
-  const createCheckout = async (planId: string) => {
+  const createCheckout = async (planId: string, provider: PaymentProvider = "stripe") => {
     try {
-      const { data, error } = await supabase.functions.invoke("create-checkout", {
+      const functionName = provider === "stripe" ? "create-checkout" : "create-mp-checkout";
+      
+      const { data, error } = await supabase.functions.invoke(functionName, {
         body: { planId },
       });
 
@@ -68,7 +92,6 @@ export function useSubscription() {
       }
 
       if (data?.url) {
-        // Open checkout in new tab
         window.open(data.url, "_blank");
         return true;
       }
@@ -110,14 +133,19 @@ export function useSubscription() {
   // Refresh subscription when returning from checkout
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("subscription") === "success") {
-      toast.success("¡Suscripción activada exitosamente!");
-      // Clean URL
+    const subscriptionStatus = params.get("subscription");
+    const provider = params.get("provider");
+    
+    if (subscriptionStatus === "success") {
+      const providerLabel = provider === "mercadopago" ? "MercadoPago" : "Stripe";
+      toast.success(`¡Suscripción activada exitosamente con ${providerLabel}!`);
       window.history.replaceState({}, "", window.location.pathname);
-      // Refresh subscription status
       setTimeout(checkSubscription, 2000);
-    } else if (params.get("subscription") === "cancelled") {
+    } else if (subscriptionStatus === "cancelled" || subscriptionStatus === "failed") {
       toast.info("Proceso de suscripción cancelado");
+      window.history.replaceState({}, "", window.location.pathname);
+    } else if (subscriptionStatus === "pending") {
+      toast.info("Tu pago está pendiente de confirmación. Te notificaremos cuando esté listo.");
       window.history.replaceState({}, "", window.location.pathname);
     }
   }, [checkSubscription]);

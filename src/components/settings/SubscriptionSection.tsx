@@ -4,6 +4,8 @@ import { Check, Users, MapPin, Headphones, Building2, Crown, Loader2, CreditCard
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -11,7 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useSubscription } from "@/hooks/useSubscription";
+import { useSubscription, PaymentProvider } from "@/hooks/useSubscription";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
@@ -50,7 +52,7 @@ const plans: Plan[] = [
   {
     id: "profesional",
     name: "Profesional",
-    priceCLP: 20000,
+    priceCLP: 15000,
     priceUSD: 22,
     professionals: 5,
     admins: 1,
@@ -69,7 +71,7 @@ const plans: Plan[] = [
   {
     id: "business",
     name: "Business",
-    priceCLP: 50000,
+    priceCLP: 40000,
     priceUSD: 55,
     professionals: 20,
     admins: 5,
@@ -89,12 +91,14 @@ const SubscriptionSection = () => {
   const { i18n } = useTranslation();
   const [showChangePlan, setShowChangePlan] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [selectedProvider, setSelectedProvider] = useState<PaymentProvider>("stripe");
   const [isProcessing, setIsProcessing] = useState(false);
 
   const {
     subscribed,
     plan: currentPlan,
     subscriptionEnd,
+    provider: activeProvider,
     isLoading,
     createCheckout,
     openCustomerPortal,
@@ -103,15 +107,11 @@ const SubscriptionSection = () => {
 
   const isSpanish = i18n.language === "es" || i18n.language === "pt";
 
-  const formatPrice = (plan: Plan) => {
-    if (isSpanish) {
-      return `$${plan.priceCLP.toLocaleString("es-CL")}`;
+  const formatPrice = (plan: Plan, provider: PaymentProvider) => {
+    if (provider === "mercadopago") {
+      return `$${plan.priceCLP.toLocaleString("es-CL")} CLP`;
     }
-    return `$${plan.priceUSD}`;
-  };
-
-  const getCurrency = () => {
-    return isSpanish ? "CLP" : "USD";
+    return `$${plan.priceUSD} USD`;
   };
 
   const getCurrentPlan = () => {
@@ -130,7 +130,7 @@ const SubscriptionSection = () => {
     
     setIsProcessing(true);
     try {
-      const success = await createCheckout(selectedPlan);
+      const success = await createCheckout(selectedPlan, selectedProvider);
       if (success) {
         setShowChangePlan(false);
         setSelectedPlan(null);
@@ -178,12 +178,21 @@ const SubscriptionSection = () => {
                     </div>
                     <div>
                       <p className="font-bold text-lg">Plan {activePlan.name}</p>
-                      <p className="text-sm text-muted-foreground">Facturación mensual</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm text-muted-foreground">Facturación mensual</p>
+                        {activeProvider && (
+                          <Badge variant="outline" className="text-xs">
+                            {activeProvider === "stripe" ? "💳 Stripe" : "💙 MercadoPago"}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-2xl">{formatPrice(activePlan)}</p>
-                    <p className="text-sm text-muted-foreground">/{getCurrency()} /mes</p>
+                    <p className="font-bold text-2xl">
+                      {formatPrice(activePlan, activeProvider || "stripe")}
+                    </p>
+                    <p className="text-sm text-muted-foreground">/mes</p>
                   </div>
                 </div>
                 
@@ -219,19 +228,21 @@ const SubscriptionSection = () => {
                 >
                   Cambiar Plan
                 </Button>
-                <Button 
-                  onClick={handleManageSubscription}
-                  variant="secondary"
-                  disabled={isProcessing}
-                  className="flex-1"
-                >
-                  {isProcessing ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <CreditCard className="h-4 w-4 mr-2" />
-                  )}
-                  Gestionar Suscripción
-                </Button>
+                {activeProvider === "stripe" && (
+                  <Button 
+                    onClick={handleManageSubscription}
+                    variant="secondary"
+                    disabled={isProcessing}
+                    className="flex-1"
+                  >
+                    {isProcessing ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <CreditCard className="h-4 w-4 mr-2" />
+                    )}
+                    Gestionar Suscripción
+                  </Button>
+                )}
               </div>
             </>
           ) : (
@@ -272,14 +283,39 @@ const SubscriptionSection = () => {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+          {/* Payment Provider Selection */}
+          <div className="p-4 rounded-lg bg-muted/50 border mb-4">
+            <Label className="text-sm font-medium mb-3 block">Método de pago</Label>
+            <RadioGroup
+              value={selectedProvider}
+              onValueChange={(v) => setSelectedProvider(v as PaymentProvider)}
+              className="grid grid-cols-2 gap-4"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="stripe" id="stripe" />
+                <Label htmlFor="stripe" className="flex items-center gap-2 cursor-pointer">
+                  <span className="text-[#635BFF] font-bold">💳 Stripe</span>
+                  <span className="text-xs text-muted-foreground">(USD - Internacional)</span>
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="mercadopago" id="mercadopago" />
+                <Label htmlFor="mercadopago" className="flex items-center gap-2 cursor-pointer">
+                  <span className="text-[#00B1EA] font-bold">💙 MercadoPago</span>
+                  <span className="text-xs text-muted-foreground">(CLP - Latinoamérica)</span>
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {plans.map((plan) => (
               <Card
                 key={plan.id}
                 className={`relative cursor-pointer transition-all hover:shadow-lg ${
                   selectedPlan === plan.id
                     ? "ring-2 ring-primary border-primary"
-                    : currentPlan === plan.id
+                    : currentPlan === plan.id && subscribed
                     ? "border-primary/50 bg-primary/5"
                     : ""
                 }`}
@@ -304,8 +340,10 @@ const SubscriptionSection = () => {
                   </div>
                   <CardTitle className="text-xl">{plan.name}</CardTitle>
                   <div className="mt-2">
-                    <span className="text-3xl font-bold">{formatPrice(plan)}</span>
-                    <span className="text-muted-foreground text-sm">/{getCurrency()}/mes</span>
+                    <span className="text-2xl font-bold">
+                      {formatPrice(plan, selectedProvider)}
+                    </span>
+                    <span className="text-muted-foreground text-sm">/mes</span>
                   </div>
                 </CardHeader>
                 
@@ -341,7 +379,7 @@ const SubscriptionSection = () => {
                 ¿Confirmar suscripción al plan <strong>{plans.find(p => p.id === selectedPlan)?.name}</strong>?
                 <br />
                 <span className="text-muted-foreground">
-                  Serás redirigido a la página de pago segura
+                  Pago con {selectedProvider === "stripe" ? "💳 Stripe" : "💙 MercadoPago"} - Serás redirigido a la página de pago segura
                 </span>
               </p>
               <div className="flex gap-2 justify-center">
