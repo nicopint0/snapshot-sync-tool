@@ -16,6 +16,8 @@ import {
   Check,
   Loader2,
   Pencil,
+  Mail,
+  Bell,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +36,7 @@ import EditAppointmentModal from "@/components/appointments/EditAppointmentModal
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useEmail } from "@/hooks/useEmail";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -47,10 +50,13 @@ interface Appointment {
   notes: string | null;
   dentist_id: string | null;
   treatment_id: string | null;
+  reminder_sent?: boolean;
+  confirmation_sent?: boolean;
   patients: {
     first_name: string;
     last_name: string;
     phone: string | null;
+    email: string | null;
   };
   treatments?: {
     name: string;
@@ -64,12 +70,50 @@ interface Appointment {
 const Appointments = () => {
   const { t } = useTranslation();
   const { profile } = useAuth();
+  const { sendEmailAsync, isLoading: isSendingEmail } = useEmail();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<"day" | "week" | "month">("day");
   const [showNewAppointment, setShowNewAppointment] = useState(false);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+
+  // Send reminder email
+  const handleSendReminder = async (apt: Appointment) => {
+    if (!apt.patients.email) {
+      toast.error("El paciente no tiene email registrado");
+      return;
+    }
+
+    const scheduledAt = new Date(apt.scheduled_at);
+    const dateFormatted = format(scheduledAt, "EEEE d 'de' MMMM 'de' yyyy", { locale: es });
+    const timeFormatted = format(scheduledAt, "HH:mm");
+    const isToday = scheduledAt.toDateString() === new Date().toDateString();
+
+    try {
+      await sendEmailAsync({
+        to: apt.patients.email,
+        template: "appointment_reminder",
+        recipientType: "patient",
+        recipientId: apt.patient_id,
+        data: {
+          patientName: `${apt.patients.first_name} ${apt.patients.last_name}`,
+          date: dateFormatted,
+          time: timeFormatted,
+          dentistName: apt.profiles ? `${apt.profiles.first_name} ${apt.profiles.last_name}` : undefined,
+          treatment: apt.treatments?.name,
+          isToday,
+          notes: apt.notes,
+        },
+      });
+
+      await supabase.from("appointments").update({ reminder_sent: true }).eq("id", apt.id);
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      toast.success("Recordatorio enviado");
+    } catch (error) {
+      toast.error("Error al enviar recordatorio");
+    }
+  };
 
   // Fetch real appointments from database
   const { data: allAppointments = [], isLoading } = useQuery({
@@ -81,7 +125,7 @@ const Appointments = () => {
         .from("appointments")
         .select(`
           *,
-          patients(first_name, last_name, phone),
+          patients(first_name, last_name, phone, email),
           treatments(name),
           profiles:dentist_id(first_name, last_name)
         `)
@@ -445,6 +489,14 @@ const Appointments = () => {
                                   }}>
                                     <Pencil className="mr-2 h-4 w-4" />
                                     Editar cita
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem 
+                                    onClick={() => handleSendReminder(apt)}
+                                    disabled={isSendingEmail || !apt.patients.email}
+                                  >
+                                    <Bell className="mr-2 h-4 w-4" />
+                                    Enviar recordatorio
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem onClick={() => handleStatusChange(apt.id, "confirmed")}>

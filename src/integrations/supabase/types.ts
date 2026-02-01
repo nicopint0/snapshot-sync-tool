@@ -17,12 +17,14 @@ export type Database = {
       appointments: {
         Row: {
           clinic_id: string
+          confirmation_sent: boolean | null
           created_at: string
           dentist_id: string | null
           duration_minutes: number | null
           id: string
           notes: string | null
           patient_id: string
+          reminder_sent: boolean | null
           scheduled_at: string
           status: Database["public"]["Enums"]["appointment_status"] | null
           treatment_id: string | null
@@ -30,12 +32,14 @@ export type Database = {
         }
         Insert: {
           clinic_id: string
+          confirmation_sent?: boolean | null
           created_at?: string
           dentist_id?: string | null
           duration_minutes?: number | null
           id?: string
           notes?: string | null
           patient_id: string
+          reminder_sent?: boolean | null
           scheduled_at: string
           status?: Database["public"]["Enums"]["appointment_status"] | null
           treatment_id?: string | null
@@ -43,12 +47,14 @@ export type Database = {
         }
         Update: {
           clinic_id?: string
+          confirmation_sent?: boolean | null
           created_at?: string
           dentist_id?: string | null
           duration_minutes?: number | null
           id?: string
           notes?: string | null
           patient_id?: string
+          reminder_sent?: boolean | null
           scheduled_at?: string
           status?: Database["public"]["Enums"]["appointment_status"] | null
           treatment_id?: string | null
@@ -238,6 +244,127 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      email_logs: {
+        Row: {
+          clicked_at: string | null
+          clinic_id: string | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          metadata: Json | null
+          opened_at: string | null
+          recipient_email: string
+          recipient_id: string | null
+          recipient_type: string
+          resend_id: string | null
+          status: string | null
+          subject: string
+          template_name: string
+        }
+        Insert: {
+          clicked_at?: string | null
+          clinic_id?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          opened_at?: string | null
+          recipient_email: string
+          recipient_id?: string | null
+          recipient_type?: string
+          resend_id?: string | null
+          status?: string | null
+          subject: string
+          template_name: string
+        }
+        Update: {
+          clicked_at?: string | null
+          clinic_id?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          metadata?: Json | null
+          opened_at?: string | null
+          recipient_email?: string
+          recipient_id?: string | null
+          recipient_type?: string
+          resend_id?: string | null
+          status?: string | null
+          subject?: string
+          template_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_logs_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_settings: {
+        Row: {
+          clinic_id: string | null
+          created_at: string | null
+          email_signature: string | null
+          from_name: string | null
+          id: string
+          reminder_enabled: boolean | null
+          reminder_hours_before: number | null
+          reply_to_email: string | null
+          send_appointment_cancelled: boolean | null
+          send_appointment_confirmation: boolean | null
+          send_appointment_reminder: boolean | null
+          send_budget_created: boolean | null
+          send_payment_receipt: boolean | null
+          send_welcome_email: boolean | null
+          updated_at: string | null
+        }
+        Insert: {
+          clinic_id?: string | null
+          created_at?: string | null
+          email_signature?: string | null
+          from_name?: string | null
+          id?: string
+          reminder_enabled?: boolean | null
+          reminder_hours_before?: number | null
+          reply_to_email?: string | null
+          send_appointment_cancelled?: boolean | null
+          send_appointment_confirmation?: boolean | null
+          send_appointment_reminder?: boolean | null
+          send_budget_created?: boolean | null
+          send_payment_receipt?: boolean | null
+          send_welcome_email?: boolean | null
+          updated_at?: string | null
+        }
+        Update: {
+          clinic_id?: string | null
+          created_at?: string | null
+          email_signature?: string | null
+          from_name?: string | null
+          id?: string
+          reminder_enabled?: boolean | null
+          reminder_hours_before?: number | null
+          reply_to_email?: string | null
+          send_appointment_cancelled?: boolean | null
+          send_appointment_confirmation?: boolean | null
+          send_appointment_reminder?: boolean | null
+          send_budget_created?: boolean | null
+          send_payment_receipt?: boolean | null
+          send_welcome_email?: boolean | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_settings_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: true
+            referencedRelation: "clinics"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       odontograms: {
         Row: {
