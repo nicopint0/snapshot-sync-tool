@@ -82,9 +82,13 @@ const plans: Plan[] = [
   },
 ];
 
-const SubscriptionSection = () => {
+interface SubscriptionSectionProps {
+  currentPlan: string;
+  onPlanChange: (plan: string) => void;
+}
+
+const SubscriptionSection = ({ currentPlan, onPlanChange }: SubscriptionSectionProps) => {
   const { i18n } = useTranslation();
-  const [currentPlan, setCurrentPlan] = useState("individual");
   const [showChangePlan, setShowChangePlan] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
 
@@ -109,7 +113,7 @@ const SubscriptionSection = () => {
 
   const handleConfirmChange = () => {
     if (selectedPlan) {
-      setCurrentPlan(selectedPlan);
+      onPlanChange(selectedPlan);
       setShowChangePlan(false);
       setSelectedPlan(null);
     }
