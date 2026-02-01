@@ -262,9 +262,9 @@ const Payments = () => {
                         {payment.patients?.first_name} {payment.patients?.last_name}
                       </TableCell>
                       <TableCell>
-                        {payment.budgets ? (
-                          <span className="text-sm text-muted-foreground">
-                            {new Date(payment.budgets.created_at).toLocaleDateString("es-ES")} - ${payment.budgets.total?.toLocaleString() || "0"}
+                        {payment.budget_id ? (
+                          <span className="font-mono text-sm">
+                            #{payment.budget_id.slice(0, 8).toUpperCase()}
                           </span>
                         ) : (
                           <span className="text-sm text-muted-foreground">-</span>
