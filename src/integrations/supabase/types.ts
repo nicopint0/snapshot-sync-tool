@@ -77,13 +77,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "appointments_patient_id_fkey"
-            columns: ["patient_id"]
-            isOneToOne: false
-            referencedRelation: "patients_limited"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "appointments_treatment_id_fkey"
             columns: ["treatment_id"]
             isOneToOne: false
@@ -211,13 +204,6 @@ export type Database = {
             referencedRelation: "patients"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "budgets_patient_id_fkey"
-            columns: ["patient_id"]
-            isOneToOne: false
-            referencedRelation: "patients_limited"
-            referencedColumns: ["id"]
-          },
         ]
       }
       clinics: {
@@ -293,13 +279,6 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "odontograms_patient_id_fkey"
-            columns: ["patient_id"]
-            isOneToOne: false
-            referencedRelation: "patients_limited"
             referencedColumns: ["id"]
           },
         ]
@@ -497,13 +476,6 @@ export type Database = {
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patients"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "payments_patient_id_fkey"
-            columns: ["patient_id"]
-            isOneToOne: false
-            referencedRelation: "patients_limited"
             referencedColumns: ["id"]
           },
         ]
@@ -756,54 +728,31 @@ export type Database = {
           updated_at: string | null
           whatsapp: string | null
         }
-        Insert: {
-          address?: string | null
-          avatar_url?: string | null
-          birth_date?: string | null
-          city?: string | null
-          clinic_id?: string | null
-          created_at?: string | null
-          email?: string | null
-          first_name?: string | null
-          gender?: string | null
-          id?: string | null
-          last_name?: string | null
-          phone?: string | null
-          postal_code?: string | null
-          state?: string | null
-          updated_at?: string | null
-          whatsapp?: string | null
-        }
-        Update: {
-          address?: string | null
-          avatar_url?: string | null
-          birth_date?: string | null
-          city?: string | null
-          clinic_id?: string | null
-          created_at?: string | null
-          email?: string | null
-          first_name?: string | null
-          gender?: string | null
-          id?: string | null
-          last_name?: string | null
-          phone?: string | null
-          postal_code?: string | null
-          state?: string | null
-          updated_at?: string | null
-          whatsapp?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "patients_clinic_id_fkey"
-            columns: ["clinic_id"]
-            isOneToOne: false
-            referencedRelation: "clinics"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
     }
     Functions: {
+      get_patients_limited: {
+        Args: never
+        Returns: {
+          address: string
+          avatar_url: string
+          birth_date: string
+          city: string
+          clinic_id: string
+          created_at: string
+          email: string
+          first_name: string
+          gender: string
+          id: string
+          last_name: string
+          phone: string
+          postal_code: string
+          state: string
+          updated_at: string
+          whatsapp: string
+        }[]
+      }
       get_payment_config_safe: {
         Args: { p_clinic_id: string }
         Returns: {
