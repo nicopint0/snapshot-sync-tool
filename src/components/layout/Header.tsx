@@ -9,6 +9,8 @@ import {
   User,
   Settings,
   LogOut,
+  X,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,9 +25,18 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import LanguageSelector from "@/components/common/LanguageSelector";
 import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 interface HeaderProps {
   onMenuClick: () => void;
+}
+
+interface Notification {
+  id: number;
+  text: string;
+  time: string;
+  type: "appointment" | "payment" | "reminder";
+  link?: string;
 }
 
 const Header = ({ onMenuClick }: HeaderProps) => {
@@ -33,6 +44,13 @@ const Header = ({ onMenuClick }: HeaderProps) => {
   const navigate = useNavigate();
   const { profile, user: authUser, signOut } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Notifications state
+  const [notifications, setNotifications] = useState<Notification[]>([
+    { id: 1, text: "Nueva cita agendada", time: "Hace 5 min", type: "appointment", link: "/appointments" },
+    { id: 2, text: "Recordatorio: María López a las 3:00 PM", time: "Hace 1 hora", type: "reminder", link: "/appointments" },
+    { id: 3, text: "Pago recibido de Carlos García", time: "Hace 2 horas", type: "payment", link: "/payments" },
+  ]);
 
   // Get user display info from profile or auth user
   const displayName = profile 
@@ -44,16 +62,38 @@ const Header = ({ onMenuClick }: HeaderProps) => {
     : "U";
   const avatarUrl = profile?.avatar_url || "";
 
-  // Mock notifications
-  const notifications = [
-    { id: 1, text: "Nueva cita agendada", time: "Hace 5 min" },
-    { id: 2, text: "Recordatorio: María López a las 3:00 PM", time: "Hace 1 hora" },
-    { id: 3, text: "Pago recibido de Carlos García", time: "Hace 2 horas" },
-  ];
-
   const handleLogout = async () => {
     await signOut();
     navigate("/auth/login");
+  };
+
+  const handleNotificationClick = (notification: Notification) => {
+    // Remove the notification
+    setNotifications(prev => prev.filter(n => n.id !== notification.id));
+    
+    // Navigate to the relevant page
+    if (notification.link) {
+      navigate(notification.link);
+    }
+    
+    toast.success("Notificación marcada como leída");
+  };
+
+  const handleRemoveNotification = (e: React.MouseEvent, notificationId: number) => {
+    e.stopPropagation(); // Prevent triggering the parent click
+    setNotifications(prev => prev.filter(n => n.id !== notificationId));
+    toast.success("Notificación eliminada");
+  };
+
+  const handleClearAllNotifications = () => {
+    setNotifications([]);
+    toast.success("Todas las notificaciones han sido eliminadas");
+  };
+
+  const handleViewAllNotifications = () => {
+    // Navigate to appointments page as a central hub for now
+    navigate("/appointments");
+    toast.info("Mostrando todas las citas y recordatorios");
   };
 
   return (
@@ -94,29 +134,66 @@ const Header = ({ onMenuClick }: HeaderProps) => {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="relative">
                 <Bell className="h-5 w-5" />
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                  {notifications.length}
-                </Badge>
+                {notifications.length > 0 && (
+                  <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                    {notifications.length}
+                  </Badge>
+                )}
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-80">
-              <div className="p-3 border-b border-border">
+              <div className="p-3 border-b border-border flex items-center justify-between">
                 <h3 className="font-semibold">Notificaciones</h3>
+                {notifications.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-xs text-muted-foreground hover:text-destructive"
+                    onClick={handleClearAllNotifications}
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    Borrar todo
+                  </Button>
+                )}
               </div>
-              {notifications.map((notification) => (
-                <DropdownMenuItem key={notification.id} className="p-3 cursor-pointer">
-                  <div>
-                    <p className="text-sm">{notification.text}</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {notification.time}
-                    </p>
-                  </div>
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="p-3 text-center text-primary cursor-pointer">
-                {t("common.viewAll")}
-              </DropdownMenuItem>
+              {notifications.length === 0 ? (
+                <div className="p-6 text-center text-muted-foreground">
+                  <Bell className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No hay notificaciones</p>
+                </div>
+              ) : (
+                <>
+                  {notifications.map((notification) => (
+                    <DropdownMenuItem 
+                      key={notification.id} 
+                      className="p-3 cursor-pointer group"
+                      onClick={() => handleNotificationClick(notification)}
+                    >
+                      <div className="flex-1">
+                        <p className="text-sm">{notification.text}</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {notification.time}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity ml-2"
+                        onClick={(e) => handleRemoveNotification(e, notification.id)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    className="p-3 text-center text-primary cursor-pointer justify-center"
+                    onClick={handleViewAllNotifications}
+                  >
+                    {t("common.viewAll")}
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
 
