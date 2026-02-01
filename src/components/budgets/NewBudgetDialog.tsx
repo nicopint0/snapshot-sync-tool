@@ -305,9 +305,9 @@ const NewBudgetDialog = ({ open, onOpenChange, preselectedPatient }: NewBudgetDi
                   <SelectValue placeholder="Seleccionar tratamiento..." />
                 </SelectTrigger>
                 <SelectContent>
-                  {treatments.map((treatment) => (
+                {treatments.map((treatment) => (
                     <SelectItem key={treatment.id} value={treatment.id}>
-                      {treatment.name} - ${treatment.price.toLocaleString()}
+                      {treatment.name} - ${(treatment.price ?? 0).toLocaleString()}
                     </SelectItem>
                   ))}
                 </SelectContent>
