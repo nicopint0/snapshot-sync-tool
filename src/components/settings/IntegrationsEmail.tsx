@@ -10,8 +10,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Mail, Bell, FileText, Send, Settings2, Loader2 } from "lucide-react";
+import { Mail, Bell, FileText, Send, Settings2, Loader2, CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface EmailSettings {
   id?: string;
@@ -64,6 +65,33 @@ export default function IntegrationsEmail() {
       return data as EmailSettings | null;
     },
     enabled: !!profile?.clinic_id,
+  });
+
+  // Check Resend connection status
+  const { data: connectionStatus, isLoading: isCheckingConnection, refetch: recheckConnection } = useQuery({
+    queryKey: ["resend-connection", profile?.clinic_id],
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("send-email", {
+          body: { testConnection: true, clinicId: profile?.clinic_id },
+        });
+        
+        if (error) {
+          return { connected: false, error: error.message, code: "INVOKE_ERROR" };
+        }
+        
+        if (data?.success) {
+          return { connected: true };
+        }
+        
+        return { connected: false, error: data?.error || "Error desconocido", code: data?.code };
+      } catch (err) {
+        return { connected: false, error: "No se pudo verificar la conexión", code: "NETWORK_ERROR" };
+      }
+    },
+    enabled: !!profile?.clinic_id,
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    retry: false,
   });
 
   // Fetch email stats
@@ -185,6 +213,44 @@ export default function IntegrationsEmail() {
           Guardar cambios
         </Button>
       </div>
+
+      {/* Connection Status Alert */}
+      {!isCheckingConnection && connectionStatus && (
+        connectionStatus.connected ? (
+          <Alert className="border-green-500/50 bg-green-50 dark:bg-green-950/20">
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+            <AlertTitle className="text-green-800 dark:text-green-400">Conexión activa</AlertTitle>
+            <AlertDescription className="text-green-700 dark:text-green-500">
+              El servicio de emails está correctamente configurado y listo para enviar.
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Servicio de email no disponible</AlertTitle>
+            <AlertDescription className="space-y-2">
+              <p>
+                {connectionStatus.code === "API_KEY_MISSING" 
+                  ? "La API key de Resend no está configurada en el backend."
+                  : connectionStatus.code === "API_KEY_INVALID"
+                  ? "La API key de Resend no es válida. Verifica que esté correctamente configurada."
+                  : connectionStatus.error}
+              </p>
+              <p className="text-sm">
+                Para configurar el servicio de emails, ve a la configuración del backend y agrega una API key válida de Resend.
+              </p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => recheckConnection()}
+                className="mt-2"
+              >
+                Verificar nuevamente
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
