@@ -21,6 +21,7 @@ import { Separator } from "@/components/ui/separator";
 import AppLayout from "@/components/layout/AppLayout";
 import IntegrationsSection from "@/components/settings/IntegrationsSection";
 import ProfessionalSchedule from "@/components/settings/ProfessionalSchedule";
+import SubscriptionSection from "@/components/settings/SubscriptionSection";
 import { useAuth } from "@/hooks/useAuth";
 
 type SettingsSection = "profile" | "clinic" | "users" | "schedule" | "notifications" | "integrations" | "subscription";
@@ -182,31 +183,7 @@ const Settings = () => {
         return <IntegrationsSection />;
 
       case "subscription":
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Suscripción</CardTitle>
-              <CardDescription>Tu plan actual y facturación</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-bold text-lg">Plan Profesional</p>
-                    <p className="text-sm text-muted-foreground">Facturación mensual</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold text-2xl">$49</p>
-                    <p className="text-sm text-muted-foreground">/mes</p>
-                  </div>
-                </div>
-              </div>
-              <Button variant="outline" className="w-full">
-                Cambiar Plan
-              </Button>
-            </CardContent>
-          </Card>
-        );
+        return <SubscriptionSection />;
 
       default:
         return null;
