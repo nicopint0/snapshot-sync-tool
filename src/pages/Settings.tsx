@@ -22,6 +22,7 @@ import AppLayout from "@/components/layout/AppLayout";
 import IntegrationsSection from "@/components/settings/IntegrationsSection";
 import ProfessionalSchedule from "@/components/settings/ProfessionalSchedule";
 import SubscriptionSection from "@/components/settings/SubscriptionSection";
+import UsersManagementSection from "@/components/settings/UsersManagementSection";
 import { useAuth } from "@/hooks/useAuth";
 
 type SettingsSection = "profile" | "clinic" | "users" | "schedule" | "notifications" | "integrations" | "subscription";
@@ -31,6 +32,7 @@ const Settings = () => {
   const { profile } = useAuth();
   const [activeSection, setActiveSection] = useState<SettingsSection>("profile");
   const [isLoading, setIsLoading] = useState(false);
+  const [currentPlan, setCurrentPlan] = useState("individual");
 
   const sections = [
     { id: "profile" as const, label: "Perfil de Usuario", icon: User },
@@ -121,17 +123,7 @@ const Settings = () => {
         );
 
       case "users":
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Usuarios y Permisos</CardTitle>
-              <CardDescription>Gestiona los miembros de tu equipo</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Próximamente podrás invitar y gestionar usuarios aquí.</p>
-            </CardContent>
-          </Card>
-        );
+        return <UsersManagementSection currentPlan={currentPlan} />;
 
       case "schedule":
         return <ProfessionalSchedule />;
@@ -183,7 +175,7 @@ const Settings = () => {
         return <IntegrationsSection />;
 
       case "subscription":
-        return <SubscriptionSection />;
+        return <SubscriptionSection currentPlan={currentPlan} onPlanChange={setCurrentPlan} />;
 
       default:
         return null;
