@@ -40,6 +40,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useEmail } from "@/hooks/useEmail";
 import { cn } from "@/lib/utils";
 
 interface ProfessionalSchedule {
@@ -54,6 +55,7 @@ interface Patient {
   id: string;
   first_name: string;
   last_name: string;
+  email?: string | null;
 }
 
 interface Treatment {
@@ -87,6 +89,7 @@ interface AppointmentData {
 const NewAppointmentModal = ({ open, onOpenChange, preselectedPatientId }: NewAppointmentModalProps) => {
   const { profile } = useAuth();
   const queryClient = useQueryClient();
+  const { sendEmailAsync } = useEmail();
   const [patientOpen, setPatientOpen] = useState(false);
   const [patientSearch, setPatientSearch] = useState("");
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
@@ -110,7 +113,7 @@ const NewAppointmentModal = ({ open, onOpenChange, preselectedPatientId }: NewAp
       if (!profile?.clinic_id) return [];
       let query = supabase
         .from("patients")
-        .select("id, first_name, last_name")
+        .select("id, first_name, last_name, email")
         .eq("clinic_id", profile.clinic_id)
         .order("first_name")
         .limit(20);
@@ -267,13 +270,58 @@ const NewAppointmentModal = ({ open, onOpenChange, preselectedPatientId }: NewAp
         treatment_id: data.treatment_id || null,
         notes: data.notes || null,
         status: "scheduled",
+        confirmation_sent: false,
       });
       
       if (error) throw error;
+
+      // Return data needed for email
+      return { scheduledAt, data };
     },
-    onSuccess: () => {
+    onSuccess: async ({ scheduledAt, data }) => {
       queryClient.invalidateQueries({ queryKey: ["appointments"] });
       toast.success("Cita creada exitosamente");
+
+      // Send confirmation email if patient has email
+      if (selectedPatient?.email) {
+        try {
+          const dateFormatted = scheduledAt.toLocaleDateString("es-ES", {
+            weekday: "long",
+            year: "numeric",
+            month: "long",
+            day: "numeric"
+          });
+          const timeFormatted = scheduledAt.toLocaleTimeString("es-ES", {
+            hour: "2-digit",
+            minute: "2-digit"
+          });
+
+          // Get dentist name if selected
+          const dentist = data.dentist_id ? dentists.find(d => d.id === data.dentist_id) : null;
+          const treatment = data.treatment_id ? treatments.find(t => t.id === data.treatment_id) : null;
+
+          await sendEmailAsync({
+            to: selectedPatient.email,
+            template: "appointment_confirmation",
+            recipientType: "patient",
+            recipientId: selectedPatient.id,
+            data: {
+              patientName: `${selectedPatient.first_name} ${selectedPatient.last_name}`,
+              date: dateFormatted,
+              time: timeFormatted,
+              scheduledAt: scheduledAt.toISOString(),
+              durationMinutes: data.duration_minutes,
+              dentistName: dentist ? `${dentist.first_name} ${dentist.last_name}` : undefined,
+              treatment: treatment?.name,
+            }
+          });
+          toast.success("Email de confirmación enviado");
+        } catch (emailError) {
+          console.error("Error sending confirmation email:", emailError);
+          // Don't show error toast - appointment was created successfully
+        }
+      }
+
       handleClose();
     },
     onError: (error) => {

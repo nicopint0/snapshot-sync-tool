@@ -189,6 +189,8 @@ function generateEmailTemplate(templateName: string, data: Record<string, unknow
 
         ${appointmentCard(d)}
 
+        ${generateCalendarLinks(d)}
+
         <p style="margin-top: 20px;">Te esperamos puntualmente. Si necesitas cancelar o reagendar, por favor contáctanos con al menos 24 horas de anticipación.</p>
       `)
     }),
@@ -478,6 +480,71 @@ function appointmentCard(data: Record<string, unknown>): string {
             <td style="padding-top: 10px;"><strong>Dirección:</strong> ${data.clinicAddress}</td>
           </tr>
         ` : ""}
+      </table>
+    </div>
+  `;
+}
+
+// Generate calendar links for appointment
+function generateCalendarLinks(data: Record<string, unknown>): string {
+  const startDate = data.scheduledAt as string;
+  const durationMinutes = (data.durationMinutes as number) || 30;
+  
+  if (!startDate) return "";
+  
+  const start = new Date(startDate);
+  const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
+  
+  // Format for Google Calendar (YYYYMMDDTHHmmssZ)
+  const formatGoogleDate = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  
+  const title = encodeURIComponent(`Cita dental - ${data.clinicName}`);
+  const description = encodeURIComponent(
+    `Cita en ${data.clinicName}${data.treatment ? `\nTratamiento: ${data.treatment}` : ""}${data.dentistName ? `\nProfesional: ${data.dentistName}` : ""}`
+  );
+  const location = encodeURIComponent((data.clinicAddress as string) || "");
+  
+  // Google Calendar
+  const googleUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${formatGoogleDate(start)}/${formatGoogleDate(end)}&details=${description}&location=${location}`;
+  
+  // Outlook Calendar
+  const outlookUrl = `https://outlook.live.com/calendar/0/action/compose?subject=${title}&startdt=${start.toISOString()}&enddt=${end.toISOString()}&body=${description}&location=${location}`;
+  
+  // ICS format for Apple Calendar and others
+  const icsContent = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+DTSTART:${formatGoogleDate(start)}
+DTEND:${formatGoogleDate(end)}
+SUMMARY:Cita dental - ${data.clinicName}
+DESCRIPTION:${data.treatment ? `Tratamiento: ${data.treatment}` : ""}${data.dentistName ? ` Profesional: ${data.dentistName}` : ""}
+LOCATION:${data.clinicAddress || ""}
+END:VEVENT
+END:VCALENDAR`;
+  const icsBase64 = btoa(unescape(encodeURIComponent(icsContent)));
+  const icsUrl = `data:text/calendar;base64,${icsBase64}`;
+  
+  return `
+    <div style="margin: 25px 0; padding: 20px; background: #F0FDF4; border-radius: 8px; text-align: center;">
+      <p style="margin: 0 0 15px 0; font-weight: 600; color: #166534;">📅 Agregar a tu calendario</p>
+      <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto;">
+        <tr>
+          <td style="padding: 0 8px;">
+            <a href="${googleUrl}" target="_blank" style="display: inline-block; padding: 10px 16px; background: #4285F4; color: white; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 500;">
+              Google
+            </a>
+          </td>
+          <td style="padding: 0 8px;">
+            <a href="${outlookUrl}" target="_blank" style="display: inline-block; padding: 10px 16px; background: #0078D4; color: white; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 500;">
+              Outlook
+            </a>
+          </td>
+          <td style="padding: 0 8px;">
+            <a href="${icsUrl}" download="cita.ics" style="display: inline-block; padding: 10px 16px; background: #1F2937; color: white; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 500;">
+              Apple / Otros
+            </a>
+          </td>
+        </tr>
       </table>
     </div>
   `;
