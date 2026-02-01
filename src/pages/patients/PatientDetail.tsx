@@ -11,6 +11,11 @@ import {
   Calendar,
   Edit,
   Loader2,
+  MoreHorizontal,
+  Send,
+  CheckCircle,
+  XCircle,
+  Check,
   MessageCircle,
   FileText,
   CreditCard,
@@ -208,6 +213,28 @@ const PatientDetail = () => {
       toast.error("Error al guardar: " + error.message);
     },
   });
+
+  // Update budget status mutation
+  const updateBudgetStatusMutation = useMutation({
+    mutationFn: async ({ budgetId, status }: { budgetId: string; status: string }) => {
+      const { error } = await supabase
+        .from("budgets")
+        .update({ status })
+        .eq("id", budgetId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["patient-budgets", id] });
+      toast.success("Estado actualizado");
+    },
+    onError: (error) => {
+      toast.error("Error al actualizar: " + error.message);
+    },
+  });
+
+  const handleChangeStatus = (budgetId: string, status: string) => {
+    updateBudgetStatusMutation.mutate({ budgetId, status });
+  };
 
   const handleSaveOdontogram = (teethData: { tooth_number: number; condition: string; notes?: string }[]) => {
     saveOdontogramMutation.mutate(teethData);
@@ -528,11 +555,13 @@ const PatientDetail = () => {
                                 <div className="flex items-center gap-2">
                                   <Badge variant={
                                     budget.status === "approved" ? "default" :
+                                    budget.status === "completed" ? "default" :
                                     budget.status === "sent" ? "secondary" :
                                     budget.status === "rejected" ? "destructive" :
                                     "outline"
-                                  }>
+                                  } className={budget.status === "completed" ? "bg-green-600" : ""}>
                                     {budget.status === "approved" ? "Aprobado" :
+                                     budget.status === "completed" ? "Realizado" :
                                      budget.status === "sent" ? "Enviado" :
                                      budget.status === "rejected" ? "Rechazado" :
                                      "Borrador"}
@@ -548,13 +577,43 @@ const PatientDetail = () => {
                                   <p className="text-sm text-muted-foreground">{budget.notes}</p>
                                 )}
                               </div>
-                              <div className="text-right">
-                                <p className="text-lg font-bold">${budget.total?.toLocaleString() || 0}</p>
-                                {budget.discount_percent > 0 && (
-                                  <p className="text-xs text-muted-foreground">
-                                    -{budget.discount_percent}% descuento
-                                  </p>
-                                )}
+                              <div className="flex items-start gap-2">
+                                <div className="text-right">
+                                  <p className="text-lg font-bold">${budget.total?.toLocaleString() || 0}</p>
+                                  {budget.discount_percent > 0 && (
+                                    <p className="text-xs text-muted-foreground">
+                                      -{budget.discount_percent}% descuento
+                                    </p>
+                                  )}
+                                </div>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="print:hidden">
+                                      <MoreHorizontal className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => handleChangeStatus(budget.id, "sent")}>
+                                      <Send className="mr-2 h-4 w-4" />
+                                      Marcar como Enviado
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleChangeStatus(budget.id, "approved")}>
+                                      <CheckCircle className="mr-2 h-4 w-4" />
+                                      Marcar como Aprobado
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleChangeStatus(budget.id, "completed")}>
+                                      <Check className="mr-2 h-4 w-4 text-green-600" />
+                                      Marcar como Realizado
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleChangeStatus(budget.id, "rejected")}>
+                                      <XCircle className="mr-2 h-4 w-4" />
+                                      Marcar como Rechazado
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleChangeStatus(budget.id, "draft")}>
+                                      Volver a Borrador
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
                               </div>
                             </div>
                             {budget.budget_items && budget.budget_items.length > 0 && (

@@ -168,6 +168,7 @@ ${budget.valid_until ? `⏳ Válido hasta: ${new Date(budget.valid_until).toLoca
     { value: "draft", label: "Borrador" },
     { value: "sent", label: "Enviado" },
     { value: "approved", label: "Aprobado" },
+    { value: "completed", label: "Realizado" },
     { value: "rejected", label: "Rechazado" },
     { value: "expired", label: "Vencido" },
   ];
@@ -177,6 +178,7 @@ ${budget.valid_until ? `⏳ Válido hasta: ${new Date(budget.valid_until).toLoca
       draft: "bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300",
       sent: "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300",
       approved: "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300",
+      completed: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-300",
       rejected: "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300",
       expired: "bg-orange-100 text-orange-700 dark:bg-orange-900 dark:text-orange-300",
     };
@@ -184,6 +186,7 @@ ${budget.valid_until ? `⏳ Válido hasta: ${new Date(budget.valid_until).toLoca
       draft: "Borrador",
       sent: "Enviado",
       approved: "Aprobado",
+      completed: "Realizado",
       rejected: "Rechazado",
       expired: "Vencido",
     };
@@ -366,6 +369,10 @@ ${budget.valid_until ? `⏳ Válido hasta: ${new Date(budget.valid_until).toLoca
                               <DropdownMenuItem onClick={() => handleChangeStatus(budget.id, "approved")}>
                                 <CheckCircle className="mr-2 h-4 w-4" />
                                 Marcar como Aprobado
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleChangeStatus(budget.id, "completed")}>
+                                <CheckCircle className="mr-2 h-4 w-4 text-emerald-600" />
+                                Marcar como Realizado
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleChangeStatus(budget.id, "rejected")}>
                                 <XCircle className="mr-2 h-4 w-4" />
