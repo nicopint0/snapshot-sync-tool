@@ -199,6 +199,7 @@ const Agenda = () => {
   };
 
   // Get appointments for a specific hour on a specific day
+  // Shows appointments that START within this hour block (e.g., 10:00-10:59)
   const getAppointmentsForHour = (date: Date, hour: number) => {
     return appointments.filter(apt => {
       const aptDate = new Date(apt.scheduled_at);
