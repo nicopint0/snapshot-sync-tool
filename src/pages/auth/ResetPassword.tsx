@@ -14,6 +14,7 @@ const ResetPassword = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [isValidating, setIsValidating] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordReset, setPasswordReset] = useState(false);
@@ -24,26 +25,43 @@ const ResetPassword = () => {
 
   // Check if we have a valid session from the reset link
   useEffect(() => {
+    let timeoutId: NodeJS.Timeout;
+    
+    // Listen for auth state changes (when user clicks the reset link)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log("Auth event:", event);
+      
+      if (event === "PASSWORD_RECOVERY") {
+        // User is in password recovery mode - they can reset their password
+        console.log("Password recovery mode active");
+        setIsValidating(false);
+      } else if (event === "SIGNED_IN" && session) {
+        // User signed in via recovery link
+        setIsValidating(false);
+      }
+    });
+
+    // Give Supabase time to process the URL hash/token
     const checkSession = async () => {
+      // Wait a bit for the auth state to be processed from URL
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
+      
+      if (session) {
+        setIsValidating(false);
+      } else {
+        // No session after waiting - invalid or expired link
         toast.error("Enlace de recuperación inválido o expirado");
         navigate("/auth/forgot-password");
       }
     };
-    
-    // Listen for auth state changes (when user clicks the reset link)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") {
-        // User is in password recovery mode
-        console.log("Password recovery mode active");
-      }
-    });
 
     checkSession();
 
     return () => {
       subscription.unsubscribe();
+      if (timeoutId) clearTimeout(timeoutId);
     };
   }, [navigate]);
 
@@ -86,6 +104,24 @@ const ResetPassword = () => {
       setIsLoading(false);
     }
   };
+
+  if (isValidating) {
+    return (
+      <AuthLayout>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="w-full max-w-md"
+        >
+          <div className="bg-card rounded-2xl shadow-xl p-8 border border-border/50 text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary mb-4" />
+            <p className="text-muted-foreground">Validando enlace de recuperación...</p>
+          </div>
+        </motion.div>
+      </AuthLayout>
+    );
+  }
 
   if (passwordReset) {
     return (
