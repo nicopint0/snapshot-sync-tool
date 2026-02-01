@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { motion } from "framer-motion";
-import { Check } from "lucide-react";
+import { Check, Users, Building2, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -9,78 +10,94 @@ import { cn } from "@/lib/utils";
 
 const plans = [
   {
-    name: "Starter",
+    id: "individual",
+    name: "Individual",
     description: "Para dentistas independientes",
-    priceMonthly: 19,
-    priceYearly: 190,
+    priceMonthlyCLP: 10000,
+    priceYearlyCLP: 100000,
+    priceMonthlyUSD: 11,
+    priceYearlyUSD: 110,
     professionals: "1 profesional",
+    icon: Users,
     features: [
-      "Agenda ilimitada",
-      "500 pacientes",
-      "Dashboard básico",
-      "50 WhatsApp/mes",
-      "Soporte email",
+      "1 profesional",
+      "1 ubicación",
+      "Soporte por email",
+      "Gestión de pacientes",
+      "Agenda y citas",
+      "Presupuestos básicos",
     ],
     cta: "Comenzar gratis",
     popular: false,
   },
   {
-    name: "Professional",
+    id: "profesional",
+    name: "Profesional",
     description: "Para clínicas en crecimiento",
-    priceMonthly: 49,
-    priceYearly: 490,
-    professionals: "Hasta 3 profesionales",
+    priceMonthlyCLP: 20000,
+    priceYearlyCLP: 200000,
+    priceMonthlyUSD: 22,
+    priceYearlyUSD: 220,
+    professionals: "5 profesionales + 1 admin",
+    icon: Building2,
     features: [
-      "Pacientes ilimitados",
-      "Reservas online públicas",
-      "Ficha clínica + Odontograma",
-      "Sistema de caja",
-      "200 WhatsApp/mes",
-      "Soporte chat prioritario",
+      "5 profesionales",
+      "1 administrativo",
+      "1 ubicación",
+      "Soporte prioritario",
+      "Reportes avanzados",
+      "Integración WhatsApp",
     ],
     cta: "Comenzar gratis",
     popular: true,
   },
   {
+    id: "business",
     name: "Business",
     description: "Para clínicas establecidas",
-    priceMonthly: 99,
-    priceYearly: 990,
-    professionals: "Hasta 10 profesionales",
+    priceMonthlyCLP: 50000,
+    priceYearlyCLP: 500000,
+    priceMonthlyUSD: 55,
+    priceYearlyUSD: 550,
+    professionals: "20 profesionales + 5 admins",
+    icon: Crown,
     features: [
-      "Todo de Professional",
-      "Inventario básico",
-      "Email marketing",
-      "Encuestas NPS",
-      "IA Denty básico",
-      "500 WhatsApp/mes",
-      "API acceso",
+      "20 profesionales",
+      "5 administrativos",
+      "3 ubicaciones",
+      "Soporte premium 24/7",
+      "Onboarding dedicado",
+      "Funciones avanzadas",
     ],
     cta: "Comenzar gratis",
-    popular: false,
-  },
-  {
-    name: "Enterprise",
-    description: "Para cadenas y clínicas premium",
-    priceMonthly: 199,
-    priceYearly: 1990,
-    professionals: "Profesionales ilimitados",
-    features: [
-      "Todo de Business",
-      "Multi-sucursal (5)",
-      "Facturación electrónica",
-      "IA Denty completo",
-      "WhatsApp ilimitado",
-      "Soporte 24/7",
-      "Onboarding dedicado",
-    ],
-    cta: "Contactar ventas",
     popular: false,
   },
 ];
 
 const PricingSection = () => {
   const [isYearly, setIsYearly] = useState(false);
+  const { i18n } = useTranslation();
+
+  const isSpanish = i18n.language === "es" || i18n.language === "pt";
+
+  const formatPrice = (plan: typeof plans[0]) => {
+    if (isSpanish) {
+      const price = isYearly 
+        ? Math.round(plan.priceYearlyCLP / 12) 
+        : plan.priceMonthlyCLP;
+      return `$${price.toLocaleString("es-CL")}`;
+    }
+    return `$${isYearly ? Math.round(plan.priceYearlyUSD / 12) : plan.priceMonthlyUSD}`;
+  };
+
+  const formatYearlyTotal = (plan: typeof plans[0]) => {
+    if (isSpanish) {
+      return `$${plan.priceYearlyCLP.toLocaleString("es-CL")} CLP`;
+    }
+    return `$${plan.priceYearlyUSD} USD`;
+  };
+
+  const getCurrency = () => (isSpanish ? "CLP" : "USD");
 
   return (
     <section id="pricing" className="py-20 bg-background">
@@ -112,7 +129,7 @@ const PricingSection = () => {
           </motion.div>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-7xl mx-auto">
+        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
           {plans.map((plan, index) => (
             <motion.div
               key={plan.name}
@@ -132,18 +149,21 @@ const PricingSection = () => {
               )}
 
               <div className="text-center mb-6">
+                <div className="mx-auto p-3 rounded-full bg-primary/10 w-fit mb-3">
+                  <plan.icon className="h-6 w-6 text-primary" />
+                </div>
                 <h3 className="text-xl font-bold text-foreground">{plan.name}</h3>
                 <p className="text-sm text-muted-foreground">{plan.description}</p>
               </div>
 
               <div className="text-center mb-6">
                 <span className="text-4xl font-bold text-foreground">
-                  ${isYearly ? Math.round(plan.priceYearly / 12) : plan.priceMonthly}
+                  {formatPrice(plan)}
                 </span>
-                <span className="text-muted-foreground">/mes</span>
+                <span className="text-muted-foreground">/{getCurrency()}/mes</span>
                 {isYearly && (
                   <p className="text-sm text-primary mt-1">
-                    Facturado anualmente (${plan.priceYearly}/año)
+                    Facturado anualmente ({formatYearlyTotal(plan)}/año)
                   </p>
                 )}
               </div>
