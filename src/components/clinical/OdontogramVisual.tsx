@@ -1,4 +1,4 @@
-import { useState, forwardRef } from "react";
+import { useState, useEffect, forwardRef } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
@@ -50,6 +50,11 @@ const OdontogramVisual = forwardRef<HTMLDivElement, OdontogramVisualProps>(
     const [selectedTooth, setSelectedTooth] = useState<number | null>(null);
     const [teethData, setTeethData] = useState<ToothData[]>(data);
     const [toothNotes, setToothNotes] = useState("");
+
+    // Sync teethData when data prop changes
+    useEffect(() => {
+      setTeethData(data);
+    }, [data]);
 
     const getToothData = (toothNumber: number): ToothData | undefined => {
       return teethData.find((t) => t.tooth_number === toothNumber);
