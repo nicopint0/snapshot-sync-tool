@@ -49,16 +49,36 @@ const Agenda = () => {
   const [selectedDentist, setSelectedDentist] = useState<string>("all");
   const [showNewAppointment, setShowNewAppointment] = useState(false);
 
+  // Calculate date range based on view
+  const getDateRange = () => {
+    const start = new Date(selectedDate);
+    const end = new Date(selectedDate);
+    
+    if (view === "day") {
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+    } else if (view === "week") {
+      start.setDate(start.getDate() - start.getDay());
+      start.setHours(0, 0, 0, 0);
+      end.setDate(start.getDate() + 6);
+      end.setHours(23, 59, 59, 999);
+    } else {
+      // month view
+      start.setDate(1);
+      start.setHours(0, 0, 0, 0);
+      end.setMonth(end.getMonth() + 1);
+      end.setDate(0);
+      end.setHours(23, 59, 59, 999);
+    }
+    
+    return { start, end };
+  };
+
   // Fetch appointments from database
   const { data: appointments = [], isLoading } = useQuery({
-    queryKey: ["appointments", selectedDate.toISOString().split("T")[0]],
+    queryKey: ["appointments", selectedDate.toISOString().split("T")[0], view],
     queryFn: async () => {
-      const startOfWeek = new Date(selectedDate);
-      startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-      startOfWeek.setHours(0, 0, 0, 0);
-      
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(endOfWeek.getDate() + 7);
+      const { start, end } = getDateRange();
       
       const { data, error } = await supabase
         .from("appointments")
@@ -73,8 +93,8 @@ const Agenda = () => {
           treatments(name),
           profiles!appointments_dentist_id_fkey(first_name, last_name)
         `)
-        .gte("scheduled_at", startOfWeek.toISOString())
-        .lte("scheduled_at", endOfWeek.toISOString())
+        .gte("scheduled_at", start.toISOString())
+        .lte("scheduled_at", end.toISOString())
         .order("scheduled_at", { ascending: true });
 
       if (error) throw error;

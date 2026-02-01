@@ -220,6 +220,33 @@ const PatientDetail = () => {
     enabled: !!id,
   });
 
+  // Fetch upcoming appointments for this patient
+  const { data: upcomingAppointments = [] } = useQuery({
+    queryKey: ["patient-appointments", id],
+    queryFn: async () => {
+      if (!id) return [];
+      const now = new Date().toISOString();
+      const { data, error } = await supabase
+        .from("appointments")
+        .select(`
+          id,
+          scheduled_at,
+          duration_minutes,
+          status,
+          notes,
+          treatments(name),
+          profiles!appointments_dentist_id_fkey(first_name, last_name)
+        `)
+        .eq("patient_id", id)
+        .gte("scheduled_at", now)
+        .order("scheduled_at", { ascending: true })
+        .limit(5);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!id,
+  });
+
   // Save odontogram mutation
   const saveOdontogramMutation = useMutation({
     mutationFn: async (teethData: { tooth_number: number; condition: string; notes?: string }[]) => {
@@ -539,7 +566,44 @@ const PatientDetail = () => {
                     <CardTitle className="text-lg print:text-sm">Próximas Citas</CardTitle>
                   </CardHeader>
                   <CardContent className="print:text-xs">
-                    <p className="text-muted-foreground text-sm">No hay citas programadas</p>
+                    {upcomingAppointments.length === 0 ? (
+                      <p className="text-muted-foreground text-sm">No hay citas programadas</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {upcomingAppointments.map((apt: any) => (
+                          <div key={apt.id} className="flex items-center justify-between p-3 rounded-lg border border-border hover:bg-muted/50 transition-colors">
+                            <div className="flex items-center gap-3">
+                              <div className="text-center min-w-[50px]">
+                                <p className="text-sm font-bold">
+                                  {new Date(apt.scheduled_at).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(apt.scheduled_at).toLocaleDateString("es-ES", { day: "numeric", month: "short" })}
+                                </p>
+                              </div>
+                              <div className="h-8 w-px bg-border" />
+                              <div>
+                                <p className="text-sm font-medium">
+                                  {apt.treatments?.name || "Consulta general"}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {apt.profiles ? `Dr. ${apt.profiles.first_name} ${apt.profiles.last_name}` : "Sin asignar"}
+                                </p>
+                              </div>
+                            </div>
+                            <Badge variant={
+                              apt.status === "confirmed" ? "default" :
+                              apt.status === "scheduled" ? "secondary" :
+                              "outline"
+                            } className="text-xs">
+                              {apt.status === "confirmed" ? "Confirmada" :
+                               apt.status === "scheduled" ? "Programada" :
+                               apt.status}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </div>
