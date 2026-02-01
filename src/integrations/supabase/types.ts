@@ -508,6 +508,57 @@ export type Database = {
           },
         ]
       }
+      professional_schedules: {
+        Row: {
+          clinic_id: string
+          created_at: string
+          day_of_week: number
+          end_time: string
+          id: string
+          is_working_day: boolean
+          profile_id: string
+          start_time: string
+          updated_at: string
+        }
+        Insert: {
+          clinic_id: string
+          created_at?: string
+          day_of_week: number
+          end_time?: string
+          id?: string
+          is_working_day?: boolean
+          profile_id: string
+          start_time?: string
+          updated_at?: string
+        }
+        Update: {
+          clinic_id?: string
+          created_at?: string
+          day_of_week?: number
+          end_time?: string
+          id?: string
+          is_working_day?: boolean
+          profile_id?: string
+          start_time?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "professional_schedules_clinic_id_fkey"
+            columns: ["clinic_id"]
+            isOneToOne: false
+            referencedRelation: "clinics"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "professional_schedules_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null

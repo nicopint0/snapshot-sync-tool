@@ -1,155 +1,146 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronLeft,
   ChevronRight,
   Plus,
   Clock,
   Phone,
+  MoreHorizontal,
+  CheckCircle,
+  XCircle,
+  PlayCircle,
+  Check,
+  Loader2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import AppLayout from "@/components/layout/AppLayout";
 import NewAppointmentModal from "@/components/appointments/NewAppointmentModal";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+
+interface Appointment {
+  id: string;
+  patient_id: string;
+  scheduled_at: string;
+  duration_minutes: number | null;
+  status: string | null;
+  notes: string | null;
+  dentist_id: string | null;
+  treatment_id: string | null;
+  patients: {
+    first_name: string;
+    last_name: string;
+    phone: string | null;
+  };
+  treatments?: {
+    name: string;
+  } | null;
+  profiles?: {
+    first_name: string;
+    last_name: string;
+  } | null;
+}
 
 const Appointments = () => {
   const { t } = useTranslation();
+  const { profile } = useAuth();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<"day" | "week" | "month">("day");
   const [showNewAppointment, setShowNewAppointment] = useState(false);
 
-  // Generate mock appointments with actual dates based on today
-  const today = new Date();
-  
-  const generateMockAppointments = () => {
-    const baseAppointments = [
-      {
-        id: "1",
-        patientName: "María López",
-        phone: "+52 55 1234 5678",
-        treatment: "Limpieza dental",
-        startTime: "09:00",
-        endTime: "09:30",
-        status: "confirmed",
-        dentist: "Dr. Juan Pérez",
-        color: "#0D9488",
-        dayOffset: 0, // today
-      },
-      {
-        id: "2",
-        patientName: "Carlos García",
-        phone: "+52 55 9876 5432",
-        treatment: "Revisión ortodoncia",
-        startTime: "10:00",
-        endTime: "10:45",
-        status: "scheduled",
-        dentist: "Dr. Juan Pérez",
-        color: "#0D9488",
-        dayOffset: 0, // today
-      },
-      {
-        id: "3",
-        patientName: "Ana Martínez",
-        phone: "+52 55 5555 1234",
-        treatment: "Extracción molar",
-        startTime: "11:30",
-        endTime: "12:30",
-        status: "confirmed",
-        dentist: "Dr. Juan Pérez",
-        color: "#0D9488",
-        dayOffset: 0, // today
-      },
-      {
-        id: "4",
-        patientName: "Roberto Sánchez",
-        phone: "+52 55 4321 8765",
-        treatment: "Blanqueamiento",
-        startTime: "14:00",
-        endTime: "15:00",
-        status: "in_progress",
-        dentist: "Dr. Juan Pérez",
-        color: "#0D9488",
-        dayOffset: 1, // tomorrow
-      },
-      {
-        id: "5",
-        patientName: "Laura Hernández",
-        phone: "+52 55 1111 2222",
-        treatment: "Consulta inicial",
-        startTime: "16:00",
-        endTime: "16:30",
-        status: "scheduled",
-        dentist: "Dr. Juan Pérez",
-        color: "#0D9488",
-        dayOffset: 1, // tomorrow
-      },
-      {
-        id: "6",
-        patientName: "Pedro Ramírez",
-        phone: "+52 55 3333 4444",
-        treatment: "Corona dental",
-        startTime: "09:30",
-        endTime: "11:00",
-        status: "confirmed",
-        dentist: "Dr. Juan Pérez",
-        color: "#0D9488",
-        dayOffset: 2, // day after tomorrow
-      },
-      {
-        id: "7",
-        patientName: "Sofia Torres",
-        phone: "+52 55 5555 6666",
-        treatment: "Endodoncia",
-        startTime: "15:00",
-        endTime: "16:30",
-        status: "scheduled",
-        dentist: "Dr. Juan Pérez",
-        color: "#0D9488",
-        dayOffset: -1, // yesterday
-      },
-    ];
+  // Fetch real appointments from database
+  const { data: allAppointments = [], isLoading } = useQuery({
+    queryKey: ["appointments", profile?.clinic_id],
+    queryFn: async () => {
+      if (!profile?.clinic_id) return [];
+      
+      const { data, error } = await supabase
+        .from("appointments")
+        .select(`
+          *,
+          patients(first_name, last_name, phone),
+          treatments(name),
+          profiles:dentist_id(first_name, last_name)
+        `)
+        .eq("clinic_id", profile.clinic_id)
+        .order("scheduled_at", { ascending: true });
+      
+      if (error) throw error;
+      return data as Appointment[];
+    },
+    enabled: !!profile?.clinic_id,
+  });
 
-    return baseAppointments.map(apt => {
-      const aptDate = new Date(today);
-      aptDate.setDate(today.getDate() + apt.dayOffset);
-      return {
-        ...apt,
-        date: aptDate,
-      };
-    });
-  };
-
-  const allAppointments = generateMockAppointments();
-
-  // Filter appointments for the current selected date
-  const appointments = allAppointments.filter(apt => 
-    apt.date.toDateString() === currentDate.toDateString()
-  );
+  // Update appointment status mutation
+  const updateStatusMutation = useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: "scheduled" | "confirmed" | "in_progress" | "completed" | "cancelled" | "no_show" }) => {
+      const { error } = await supabase
+        .from("appointments")
+        .update({ status })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["appointments"] });
+      toast.success("Estado de cita actualizado");
+    },
+    onError: (error) => {
+      toast.error("Error al actualizar: " + error.message);
+    },
+  });
 
   const hours = Array.from({ length: 12 }, (_, i) => i + 8); // 8AM to 7PM
 
-  const getStatusBadge = (status: string) => {
-    const styles = {
+  // Filter appointments for the current selected date
+  const getAppointmentsForDate = (date: Date) => {
+    return allAppointments.filter(apt => {
+      const aptDate = new Date(apt.scheduled_at);
+      return aptDate.toDateString() === date.toDateString();
+    });
+  };
+
+  const appointments = getAppointmentsForDate(currentDate);
+
+  const getStatusBadge = (status: string | null) => {
+    const styles: Record<string, string> = {
       confirmed: "status-confirmed",
       scheduled: "status-scheduled",
       in_progress: "status-in-progress",
       completed: "status-completed",
       cancelled: "status-cancelled",
+      no_show: "bg-gray-500 text-white",
     };
-    const labels = {
+    const labels: Record<string, string> = {
       confirmed: t("appointments.confirmed"),
       scheduled: t("appointments.scheduled"),
       in_progress: t("appointments.inProgress"),
       completed: t("appointments.completed"),
       cancelled: t("appointments.cancelled"),
+      no_show: "No asistió",
     };
     return (
-      <Badge className={`${styles[status as keyof typeof styles]} border-0 text-xs`}>
-        {labels[status as keyof typeof labels]}
+      <Badge className={`${styles[status || "scheduled"]} border-0 text-xs`}>
+        {labels[status || "scheduled"]}
       </Badge>
     );
   };
@@ -202,7 +193,6 @@ const Appointments = () => {
     
     const days: { date: Date; dayNumber: number; isCurrentMonth: boolean; isToday: boolean }[] = [];
     
-    // Previous month days
     const prevMonthLastDay = new Date(year, month, 0).getDate();
     for (let i = startDay - 1; i >= 0; i--) {
       days.push({
@@ -213,7 +203,6 @@ const Appointments = () => {
       });
     }
     
-    // Current month days
     const today = new Date();
     for (let i = 1; i <= daysInMonth; i++) {
       const date = new Date(year, month, i);
@@ -228,7 +217,6 @@ const Appointments = () => {
       });
     }
     
-    // Next month days
     const remainingDays = 42 - days.length;
     for (let i = 1; i <= remainingDays; i++) {
       days.push({
@@ -242,15 +230,35 @@ const Appointments = () => {
     return days;
   };
 
-  const getAppointmentPosition = (startTime: string, endTime: string) => {
-    const [startHour, startMin] = startTime.split(":").map(Number);
-    const [endHour, endMin] = endTime.split(":").map(Number);
+  const getAppointmentPosition = (apt: Appointment) => {
+    const scheduledAt = new Date(apt.scheduled_at);
+    const startHour = scheduledAt.getHours();
+    const startMin = scheduledAt.getMinutes();
+    const duration = apt.duration_minutes || 30;
 
     const startOffset = (startHour - 8) * 80 + (startMin / 60) * 80;
-    const duration = ((endHour - startHour) * 60 + (endMin - startMin)) / 60;
-    const height = duration * 80;
+    const height = (duration / 60) * 80;
 
     return { top: startOffset, height };
+  };
+
+  const formatTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return format(date, "HH:mm");
+  };
+
+  const getEndTime = (apt: Appointment) => {
+    const date = new Date(apt.scheduled_at);
+    date.setMinutes(date.getMinutes() + (apt.duration_minutes || 30));
+    return format(date, "HH:mm");
+  };
+
+  const handleStatusChange = (id: string, status: "scheduled" | "confirmed" | "in_progress" | "completed" | "cancelled" | "no_show") => {
+    updateStatusMutation.mutate({ id, status });
+  };
+
+  const handleAppointmentClick = (apt: Appointment) => {
+    navigate(`/patients/${apt.patient_id}`);
   };
 
   const containerVariants = {
@@ -323,8 +331,15 @@ const Appointments = () => {
           </Card>
         </motion.div>
 
+        {/* Loading state */}
+        {isLoading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        )}
+
         {/* Day view */}
-        {view === "day" && (
+        {!isLoading && view === "day" && (
           <motion.div variants={itemVariants}>
             <Card>
               <CardContent className="p-4">
@@ -345,51 +360,107 @@ const Appointments = () => {
 
                   {/* Appointments overlay */}
                   <div className="absolute top-0 left-16 right-0">
-                    {appointments.map((appointment) => {
-                      const { top, height } = getAppointmentPosition(
-                        appointment.startTime,
-                        appointment.endTime
-                      );
+                    {appointments.map((apt) => {
+                      const { top, height } = getAppointmentPosition(apt);
+                      const patientName = `${apt.patients.first_name} ${apt.patients.last_name}`;
                       return (
                         <motion.div
-                          key={appointment.id}
+                          key={apt.id}
                           initial={{ opacity: 0, scale: 0.95 }}
                           animate={{ opacity: 1, scale: 1 }}
-                          className="absolute left-2 right-2 p-3 rounded-lg border cursor-pointer hover:shadow-lg transition-shadow"
+                          className="absolute left-2 right-2 p-3 rounded-lg border cursor-pointer hover:shadow-lg transition-shadow bg-primary/10 border-primary"
                           style={{
                             top: `${top}px`,
-                            height: `${height}px`,
-                            backgroundColor: `${appointment.color}15`,
-                            borderColor: appointment.color,
+                            height: `${Math.max(height, 60)}px`,
                             borderLeftWidth: "4px",
                           }}
+                          onClick={() => handleAppointmentClick(apt)}
                         >
                           <div className="flex items-start justify-between h-full">
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2 mb-1">
                                 <p className="font-semibold text-foreground truncate">
-                                  {appointment.patientName}
+                                  {patientName}
                                 </p>
-                                {getStatusBadge(appointment.status)}
+                                {getStatusBadge(apt.status)}
                               </div>
                               <p className="text-sm text-muted-foreground truncate">
-                                {appointment.treatment}
+                                {apt.treatments?.name || "Consulta general"}
                               </p>
                               <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
                                 <span className="flex items-center gap-1">
                                   <Clock className="h-3 w-3" />
-                                  {appointment.startTime} - {appointment.endTime}
+                                  {formatTime(apt.scheduled_at)} - {getEndTime(apt)}
                                 </span>
                               </div>
                             </div>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
-                              <Phone className="h-4 w-4" />
-                            </Button>
+                            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                              {apt.patients.phone && (
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-8 w-8 flex-shrink-0"
+                                  asChild
+                                >
+                                  <a href={`tel:${apt.patients.phone}`}>
+                                    <Phone className="h-4 w-4" />
+                                  </a>
+                                </Button>
+                              )}
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem onClick={() => handleStatusChange(apt.id, "confirmed")}>
+                                    <CheckCircle className="mr-2 h-4 w-4 text-green-600" />
+                                    Confirmar
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleStatusChange(apt.id, "in_progress")}>
+                                    <PlayCircle className="mr-2 h-4 w-4 text-blue-600" />
+                                    En progreso
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleStatusChange(apt.id, "completed")}>
+                                    <Check className="mr-2 h-4 w-4 text-primary" />
+                                    Completada
+                                  </DropdownMenuItem>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => handleStatusChange(apt.id, "no_show")}>
+                                    No asistió
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem 
+                                    onClick={() => handleStatusChange(apt.id, "cancelled")}
+                                    className="text-destructive"
+                                  >
+                                    <XCircle className="mr-2 h-4 w-4" />
+                                    Cancelar
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
                           </div>
                         </motion.div>
                       );
                     })}
                   </div>
+
+                  {/* Empty state */}
+                  {appointments.length === 0 && (
+                    <div className="absolute inset-0 left-16 flex items-center justify-center">
+                      <div className="text-center text-muted-foreground">
+                        <p>No hay citas para este día</p>
+                        <Button 
+                          variant="link" 
+                          className="mt-2"
+                          onClick={() => setShowNewAppointment(true)}
+                        >
+                          Agregar cita
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -397,7 +468,7 @@ const Appointments = () => {
         )}
 
         {/* Week view */}
-        {view === "week" && (
+        {!isLoading && view === "week" && (
           <motion.div variants={itemVariants}>
             <Card>
               <CardContent className="p-4">
@@ -438,23 +509,36 @@ const Appointments = () => {
                           {`${hour.toString().padStart(2, "0")}:00`}
                         </div>
                         {getWeekDays().map((day, dayIndex) => {
-                          const dayAppointments = appointments.filter(
-                            (apt) => parseInt(apt.startTime.split(":")[0]) === hour
+                          const dayAppointments = getAppointmentsForDate(day).filter(
+                            (apt) => new Date(apt.scheduled_at).getHours() === hour
                           );
                           return (
                             <div
                               key={`${hour}-${dayIndex}`}
                               className="bg-background p-1 min-h-[60px] border-t border-border hover:bg-muted/50 cursor-pointer transition-colors"
+                              onClick={() => {
+                                setCurrentDate(day);
+                                setView("day");
+                              }}
                             >
-                              {dayIndex === 0 && dayAppointments.slice(0, 1).map((apt) => (
+                              {dayAppointments.slice(0, 1).map((apt) => (
                                 <div
                                   key={apt.id}
                                   className="bg-primary/10 border-l-2 border-primary p-1 rounded text-xs"
                                 >
-                                  <p className="font-medium truncate">{apt.patientName}</p>
-                                  <p className="text-muted-foreground truncate">{apt.treatment}</p>
+                                  <p className="font-medium truncate">
+                                    {apt.patients.first_name} {apt.patients.last_name}
+                                  </p>
+                                  <p className="text-muted-foreground truncate">
+                                    {apt.treatments?.name || "Consulta"}
+                                  </p>
                                 </div>
                               ))}
+                              {dayAppointments.length > 1 && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  +{dayAppointments.length - 1} más
+                                </p>
+                              )}
                             </div>
                           );
                         })}
@@ -468,7 +552,7 @@ const Appointments = () => {
         )}
 
         {/* Month view */}
-        {view === "month" && (
+        {!isLoading && view === "month" && (
           <motion.div variants={itemVariants}>
             <Card>
               <CardContent className="p-4">
@@ -478,35 +562,47 @@ const Appointments = () => {
                       {day}
                     </div>
                   ))}
-                  {generateMonthDays().map((day, i) => (
-                    <div
-                      key={i}
-                      onClick={() => {
-                        setCurrentDate(day.date);
-                        setView("day");
-                      }}
-                      className={cn(
-                        "min-h-24 p-2 border rounded-lg text-sm cursor-pointer transition-colors hover:bg-muted/50",
-                        !day.isCurrentMonth && "bg-muted/20 text-muted-foreground",
-                        day.isToday && "ring-2 ring-primary ring-offset-2"
-                      )}
-                    >
-                      <span className={cn(
-                        "inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-medium",
-                        day.isToday && "bg-primary text-primary-foreground"
-                      )}>
-                        {day.dayNumber}
-                      </span>
-                      {/* Show appointments for first few days as demo */}
-                      {day.isCurrentMonth && day.dayNumber <= 5 && (
-                        <div className="mt-1 space-y-1">
-                          <div className="bg-primary/10 border-l-2 border-primary px-1 py-0.5 rounded text-xs truncate">
-                            {appointments[day.dayNumber - 1]?.patientName || "Cita"}
+                  {generateMonthDays().map((day, i) => {
+                    const dayAppointments = getAppointmentsForDate(day.date);
+                    return (
+                      <div
+                        key={i}
+                        onClick={() => {
+                          setCurrentDate(day.date);
+                          setView("day");
+                        }}
+                        className={cn(
+                          "min-h-24 p-2 border rounded-lg text-sm cursor-pointer transition-colors hover:bg-muted/50",
+                          !day.isCurrentMonth && "bg-muted/20 text-muted-foreground",
+                          day.isToday && "ring-2 ring-primary ring-offset-2"
+                        )}
+                      >
+                        <span className={cn(
+                          "inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-medium",
+                          day.isToday && "bg-primary text-primary-foreground"
+                        )}>
+                          {day.dayNumber}
+                        </span>
+                        {dayAppointments.length > 0 && (
+                          <div className="mt-1 space-y-1">
+                            {dayAppointments.slice(0, 2).map((apt) => (
+                              <div 
+                                key={apt.id}
+                                className="bg-primary/10 border-l-2 border-primary px-1 py-0.5 rounded text-xs truncate"
+                              >
+                                {apt.patients.first_name}
+                              </div>
+                            ))}
+                            {dayAppointments.length > 2 && (
+                              <p className="text-xs text-muted-foreground">
+                                +{dayAppointments.length - 2} más
+                              </p>
+                            )}
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>

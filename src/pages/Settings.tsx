@@ -20,6 +20,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import AppLayout from "@/components/layout/AppLayout";
 import IntegrationsSection from "@/components/settings/IntegrationsSection";
+import ProfessionalSchedule from "@/components/settings/ProfessionalSchedule";
 import { useAuth } from "@/hooks/useAuth";
 
 type SettingsSection = "profile" | "clinic" | "users" | "schedule" | "notifications" | "integrations" | "subscription";
@@ -132,17 +133,7 @@ const Settings = () => {
         );
 
       case "schedule":
-        return (
-          <Card>
-            <CardHeader>
-              <CardTitle>Horarios de Atención</CardTitle>
-              <CardDescription>Configura los horarios de la clínica</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Próximamente podrás configurar los horarios aquí.</p>
-            </CardContent>
-          </Card>
-        );
+        return <ProfessionalSchedule />;
 
       case "notifications":
         return (
