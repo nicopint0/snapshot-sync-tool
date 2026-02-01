@@ -709,27 +709,7 @@ export type Database = {
       }
     }
     Views: {
-      patients_limited: {
-        Row: {
-          address: string | null
-          avatar_url: string | null
-          birth_date: string | null
-          city: string | null
-          clinic_id: string | null
-          created_at: string | null
-          email: string | null
-          first_name: string | null
-          gender: string | null
-          id: string | null
-          last_name: string | null
-          phone: string | null
-          postal_code: string | null
-          state: string | null
-          updated_at: string | null
-          whatsapp: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       get_patients_limited: {
