@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,6 +16,7 @@ interface EmailRequest {
   clinicId: string;
   recipientType?: "patient" | "user";
   recipientId?: string;
+  testConnection?: boolean;
 }
 
 serve(async (req) => {
@@ -24,12 +25,64 @@ serve(async (req) => {
   }
 
   try {
+    // Validate API key exists
+    if (!RESEND_API_KEY || RESEND_API_KEY.trim() === "") {
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "RESEND_API_KEY no configurada", 
+          code: "API_KEY_MISSING" 
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const resend = new Resend(RESEND_API_KEY);
+    
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    const { to, template, data, clinicId, recipientType, recipientId }: EmailRequest = await req.json();
+    const body: EmailRequest = await req.json();
+    
+    // Handle test connection request
+    if (body.testConnection) {
+      try {
+        // Try to get API key info to validate it works
+        const testResponse = await fetch("https://api.resend.com/domains", {
+          headers: { Authorization: `Bearer ${RESEND_API_KEY}` }
+        });
+        
+        if (!testResponse.ok) {
+          const errorData = await testResponse.json();
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: errorData.message || "API key inválida",
+              code: "API_KEY_INVALID"
+            }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        
+        return new Response(
+          JSON.stringify({ success: true, message: "Conexión exitosa con Resend" }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (testError) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: "No se pudo conectar con Resend",
+            code: "CONNECTION_ERROR"
+          }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    const { to, template, data, clinicId, recipientType, recipientId } = body;
 
     // Obtener configuración de la clínica
     const { data: settings } = await supabase
@@ -99,8 +152,23 @@ serve(async (req) => {
     const error = err as Error;
     console.error("Error sending email:", error);
 
+    // Check for common Resend errors
+    let errorCode = "UNKNOWN_ERROR";
+    let errorMessage = error.message;
+    
+    if (error.message?.includes("API key is invalid")) {
+      errorCode = "API_KEY_INVALID";
+      errorMessage = "La API key de Resend no es válida. Verifica tu configuración.";
+    } else if (error.message?.includes("rate limit")) {
+      errorCode = "RATE_LIMITED";
+      errorMessage = "Se ha excedido el límite de envíos. Intenta más tarde.";
+    } else if (error.message?.includes("domain")) {
+      errorCode = "DOMAIN_ERROR";
+      errorMessage = "Problema con el dominio de envío. Verifica tu configuración en Resend.";
+    }
+
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
+      JSON.stringify({ success: false, error: errorMessage, code: errorCode }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

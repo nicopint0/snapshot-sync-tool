@@ -22,6 +22,45 @@ interface SendEmailParams {
   showToast?: boolean;
 }
 
+interface EmailError {
+  message: string;
+  code?: string;
+  isConfigError?: boolean;
+}
+
+function parseEmailError(result: { success: boolean; error?: string; code?: string }): EmailError {
+  const code = result.code || "UNKNOWN";
+  
+  const errorMessages: Record<string, EmailError> = {
+    API_KEY_MISSING: {
+      message: "El servicio de emails no está configurado",
+      code,
+      isConfigError: true,
+    },
+    API_KEY_INVALID: {
+      message: "La configuración del servicio de emails es incorrecta",
+      code,
+      isConfigError: true,
+    },
+    RATE_LIMITED: {
+      message: "Se ha excedido el límite de envíos. Intenta más tarde",
+      code,
+      isConfigError: false,
+    },
+    DOMAIN_ERROR: {
+      message: "Error de configuración del dominio de emails",
+      code,
+      isConfigError: true,
+    },
+  };
+
+  return errorMessages[code] || {
+    message: result.error || "Error al enviar el email",
+    code,
+    isConfigError: false,
+  };
+}
+
 export function useEmail() {
   const { profile } = useAuth();
 
@@ -43,7 +82,15 @@ export function useEmail() {
       });
 
       if (error) throw error;
-      if (!result?.success) throw new Error(result?.error || "Error al enviar email");
+      
+      if (!result?.success) {
+        const parsedError = parseEmailError(result || {});
+        const err = new Error(parsedError.message) as Error & { code?: string; isConfigError?: boolean };
+        err.code = parsedError.code;
+        err.isConfigError = parsedError.isConfigError;
+        throw err;
+      }
+      
       return result;
     },
   });
@@ -56,8 +103,14 @@ export function useEmail() {
     onSuccess: () => {
       toast.success("Email enviado correctamente");
     },
-    onError: (error) => {
-      toast.error(`Error al enviar email: ${error.message}`);
+    onError: (error: Error & { isConfigError?: boolean }) => {
+      if (error.isConfigError) {
+        toast.error(error.message, {
+          description: "Contacta al administrador para configurar el servicio de emails",
+        });
+      } else {
+        toast.error(`Error al enviar email: ${error.message}`);
+      }
     },
   });
 
