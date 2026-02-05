@@ -7,6 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { 
+  springGentle, 
+  springSubtle,
+  hoverLiftEffect,
+} from "@/lib/animations";
 
 const plans = [
   {
@@ -74,6 +79,27 @@ const plans = [
   },
 ];
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.12,
+      delayChildren: 0.1,
+    },
+  },
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 40, scale: 0.95 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: springGentle,
+  },
+};
+
 const PricingSection = () => {
   const [isYearly, setIsYearly] = useState(false);
   const { i18n } = useTranslation();
@@ -104,10 +130,10 @@ const PricingSection = () => {
       <div className="container mx-auto px-4 sm:px-6">
         <div className="text-center mb-12">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5 }}
+            viewport={{ once: true, margin: "-50px" }}
+            transition={springGentle}
           >
             <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
               Planes simples, sin sorpresas
@@ -129,16 +155,20 @@ const PricingSection = () => {
           </motion.div>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
+        <motion.div 
+          className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto"
+          variants={containerVariants}
+          initial="hidden"
+          whileInView="visible"
+          viewport={{ once: true, margin: "-80px" }}
+        >
           {plans.map((plan, index) => (
             <motion.div
               key={plan.name}
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
+              variants={cardVariants}
+              whileHover={hoverLiftEffect}
               className={cn(
-                "bg-card rounded-2xl p-6 border-2 transition-all hover:shadow-lg relative",
+                "bg-card rounded-2xl p-6 border-2 transition-all relative cursor-pointer",
                 plan.popular ? "border-primary" : "border-border"
               )}
             >
@@ -149,22 +179,37 @@ const PricingSection = () => {
               )}
 
               <div className="text-center mb-6">
-                <div className="mx-auto p-3 rounded-full bg-primary/10 w-fit mb-3">
+                <motion.div 
+                  className="mx-auto p-3 rounded-full bg-primary/10 w-fit mb-3"
+                  whileHover={{ rotate: 10, scale: 1.1 }}
+                  transition={springSubtle}
+                >
                   <plan.icon className="h-6 w-6 text-primary" />
-                </div>
+                </motion.div>
                 <h3 className="text-xl font-bold text-foreground">{plan.name}</h3>
                 <p className="text-sm text-muted-foreground">{plan.description}</p>
               </div>
 
               <div className="text-center mb-6">
-                <span className="text-4xl font-bold text-foreground">
+                <motion.span 
+                  className="text-4xl font-bold text-foreground"
+                  key={`${plan.id}-${isYearly}`}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={springSubtle}
+                >
                   {formatPrice(plan)}
-                </span>
+                </motion.span>
                 <span className="text-muted-foreground">/{getCurrency()}/mes</span>
                 {isYearly && (
-                  <p className="text-sm text-primary mt-1">
+                  <motion.p 
+                    className="text-sm text-primary mt-1"
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    transition={springSubtle}
+                  >
                     Facturado anualmente ({formatYearlyTotal(plan)}/año)
-                  </p>
+                  </motion.p>
                 )}
               </div>
 
@@ -174,23 +219,36 @@ const PricingSection = () => {
 
               <ul className="space-y-3 mb-6">
                 {plan.features.map((feature, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm">
+                  <motion.li 
+                    key={i} 
+                    className="flex items-start gap-2 text-sm"
+                    initial={{ opacity: 0, x: -10 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ ...springSubtle, delay: i * 0.05 }}
+                  >
                     <Check className="h-5 w-5 text-primary shrink-0" />
                     <span className="text-muted-foreground">{feature}</span>
-                  </li>
+                  </motion.li>
                 ))}
               </ul>
 
-              <Button
-                className={cn("w-full", plan.popular && "bg-primary hover:bg-primary/90")}
-                variant={plan.popular ? "default" : "outline"}
-                asChild
+              <motion.div
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.98 }}
+                transition={springSubtle}
               >
-                <Link to="/auth/register">{plan.cta}</Link>
-              </Button>
+                <Button
+                  className={cn("w-full", plan.popular && "bg-primary hover:bg-primary/90")}
+                  variant={plan.popular ? "default" : "outline"}
+                  asChild
+                >
+                  <Link to="/auth/register">{plan.cta}</Link>
+                </Button>
+              </motion.div>
             </motion.div>
           ))}
-        </div>
+        </motion.div>
       </div>
     </section>
   );
