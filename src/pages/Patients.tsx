@@ -50,6 +50,13 @@ import { useAuth } from "@/hooks/useAuth";
 import NewAppointmentModal from "@/components/appointments/NewAppointmentModal";
 import NewBudgetDialog from "@/components/budgets/NewBudgetDialog";
 import { toast } from "@/hooks/use-toast";
+import { 
+  pageVariants, 
+  fadeUpVariants,
+  cardVariants,
+  tableRowVariants,
+  springSubtle,
+} from "@/lib/animations";
 
 const Patients = () => {
   const { t } = useTranslation();
@@ -109,29 +116,17 @@ const Patients = () => {
     return date.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" });
   };
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.05 },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 10 },
-    visible: { opacity: 1, y: 0 },
-  };
-
   return (
     <AppLayout>
       <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
+        variants={pageVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
         className="space-y-6"
       >
         {/* Header */}
-        <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <motion.div variants={fadeUpVariants} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-foreground">
               {t("patients.title")}
@@ -149,7 +144,7 @@ const Patients = () => {
         </motion.div>
 
         {/* Filters */}
-        <motion.div variants={itemVariants}>
+        <motion.div variants={cardVariants}>
           <Card>
             <CardContent className="p-4">
               <div className="flex flex-col sm:flex-row gap-4">
@@ -184,7 +179,7 @@ const Patients = () => {
         </motion.div>
 
         {/* Patients table */}
-        <motion.div variants={itemVariants}>
+        <motion.div variants={cardVariants}>
           <Card>
             <CardContent className="p-0">
               {isLoading ? (
@@ -205,11 +200,15 @@ const Patients = () => {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredPatients.map((patient) => (
+                      {filteredPatients.map((patient, index) => (
                         <motion.tr
                           key={patient.id}
-                          variants={itemVariants}
-                          className="group hover:bg-muted/50"
+                          variants={tableRowVariants}
+                          initial="hidden"
+                          animate="visible"
+                          transition={{ delay: index * 0.03 }}
+                          whileHover={{ backgroundColor: "hsl(var(--muted) / 0.5)", transition: springSubtle }}
+                          className="group"
                         >
                           <TableCell>
                             <div className="flex items-center gap-3">
@@ -313,7 +312,12 @@ const Patients = () => {
               )}
 
               {!isLoading && filteredPatients.length === 0 && (
-                <div className="text-center py-12">
+                <motion.div 
+                  className="text-center py-12"
+                  variants={fadeUpVariants}
+                  initial="hidden"
+                  animate="visible"
+                >
                   <div className="w-16 h-16 rounded-full bg-muted mx-auto mb-4 flex items-center justify-center">
                     <Users className="h-8 w-8 text-muted-foreground" />
                   </div>
@@ -327,7 +331,7 @@ const Patients = () => {
                       {t("patients.newPatient")}
                     </Link>
                   </Button>
-                </div>
+                </motion.div>
               )}
             </CardContent>
           </Card>

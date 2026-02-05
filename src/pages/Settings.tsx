@@ -24,6 +24,12 @@ import ProfessionalSchedule from "@/components/settings/ProfessionalSchedule";
 import SubscriptionSection from "@/components/settings/SubscriptionSection";
 import UsersManagementSection from "@/components/settings/UsersManagementSection";
 import { useAuth } from "@/hooks/useAuth";
+import { 
+  pageVariants, 
+  fadeUpVariants,
+  cardVariants,
+  springSubtle,
+} from "@/lib/animations";
 
 type SettingsSection = "profile" | "clinic" | "users" | "schedule" | "notifications" | "integrations" | "subscription";
 
@@ -185,43 +191,55 @@ const Settings = () => {
   return (
     <AppLayout>
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+        variants={pageVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
         className="space-y-6"
       >
         {/* Header */}
-        <div>
+        <motion.div variants={fadeUpVariants}>
           <h1 className="text-2xl font-bold text-foreground">{t("settings.title")}</h1>
           <p className="text-muted-foreground">Administra la configuración de tu cuenta y clínica</p>
-        </div>
+        </motion.div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Sidebar */}
-          <Card className="lg:col-span-1 h-fit">
-            <CardContent className="p-2">
-              <nav className="space-y-1">
-                {sections.map((section) => (
-                  <button
-                    key={section.id}
-                    onClick={() => setActiveSection(section.id)}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      activeSection === section.id
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    <section.icon className="h-4 w-4" />
-                    {section.label}
-                  </button>
-                ))}
-              </nav>
-            </CardContent>
-          </Card>
+          <motion.div variants={cardVariants}>
+            <Card className="lg:col-span-1 h-fit">
+              <CardContent className="p-2">
+                <nav className="space-y-1">
+                  {sections.map((section, index) => (
+                    <motion.button
+                      key={section.id}
+                      onClick={() => setActiveSection(section.id)}
+                      whileHover={{ x: 4, transition: springSubtle }}
+                      whileTap={{ scale: 0.98 }}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        activeSection === section.id
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      }`}
+                    >
+                      <section.icon className="h-4 w-4" />
+                      {section.label}
+                    </motion.button>
+                  ))}
+                </nav>
+              </CardContent>
+            </Card>
+          </motion.div>
 
           {/* Content */}
-          <div className="lg:col-span-3">
+          <motion.div 
+            className="lg:col-span-3"
+            variants={cardVariants}
+            key={activeSection}
+            initial="hidden"
+            animate="visible"
+          >
             {renderContent()}
-          </div>
+          </motion.div>
         </div>
       </motion.div>
     </AppLayout>

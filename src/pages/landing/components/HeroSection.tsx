@@ -2,6 +2,33 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowRight, Calendar, Users, MessageCircle, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { 
+  springSubtle, 
+  springGentle,
+  staggerContainerVariants,
+  fadeUpVariants,
+  hoverLiftEffect,
+} from "@/lib/animations";
+
+const heroContainerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.12,
+      delayChildren: 0.1,
+    },
+  },
+};
+
+const heroItemVariants = {
+  hidden: { opacity: 0, y: 30 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: springGentle,
+  },
+};
 
 const HeroSection = () => {
   return (
@@ -9,47 +36,72 @@ const HeroSection = () => {
       <div className="container mx-auto px-4 sm:px-6">
         <div className="max-w-4xl mx-auto text-center">
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
+            variants={heroContainerVariants}
+            initial="hidden"
+            animate="visible"
           >
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
+            <motion.span 
+              variants={heroItemVariants}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6"
+            >
               <Brain className="h-4 w-4" />
               Potenciado con Inteligencia Artificial
-            </span>
+            </motion.span>
             
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight">
+            <motion.h1 
+              variants={heroItemVariants}
+              className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight"
+            >
               Tu clínica dental,{" "}
               <span className="text-primary">más inteligente</span>
-            </h1>
+            </motion.h1>
             
-            <p className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+            <motion.p 
+              variants={heroItemVariants}
+              className="text-lg md:text-xl text-muted-foreground mb-8 max-w-2xl mx-auto"
+            >
               Denty.io es el software de gestión dental que automatiza tu consultorio, 
               simplifica la agenda y mejora la comunicación con tus pacientes.
-            </p>
+            </motion.p>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button size="lg" className="text-base px-8" asChild>
-                <Link to="/auth/register">
-                  Comenzar Gratis
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </Link>
-              </Button>
-              <Button size="lg" variant="outline" className="text-base px-8" asChild>
-                <a href="#demo">Ver Demo</a>
-              </Button>
-            </div>
+            <motion.div 
+              variants={heroItemVariants}
+              className="flex flex-col sm:flex-row items-center justify-center gap-4"
+            >
+              <motion.div
+                whileHover={{ scale: 1.05, transition: springSubtle }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Button size="lg" className="text-base px-8" asChild>
+                  <Link to="/auth/register">
+                    Comenzar Gratis
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Link>
+                </Button>
+              </motion.div>
+              <motion.div
+                whileHover={{ scale: 1.03, transition: springSubtle }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Button size="lg" variant="outline" className="text-base px-8" asChild>
+                  <a href="#demo">Ver Demo</a>
+                </Button>
+              </motion.div>
+            </motion.div>
 
-            <p className="text-sm text-muted-foreground mt-4">
+            <motion.p 
+              variants={heroItemVariants}
+              className="text-sm text-muted-foreground mt-4"
+            >
               14 días gratis • Sin tarjeta de crédito • Cancela cuando quieras
-            </p>
+            </motion.p>
           </motion.div>
 
           {/* Feature highlights */}
           <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
+            variants={staggerContainerVariants}
+            initial="hidden"
+            animate="visible"
             className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-16"
           >
             {[
@@ -58,15 +110,17 @@ const HeroSection = () => {
               { icon: MessageCircle, label: "WhatsApp integrado" },
               { icon: Brain, label: "Asistente IA" },
             ].map((item, index) => (
-              <div
+              <motion.div
                 key={index}
-                className="flex flex-col items-center gap-2 p-4 rounded-xl bg-card border border-border hover:shadow-lg transition-shadow"
+                variants={fadeUpVariants}
+                whileHover={hoverLiftEffect}
+                className="flex flex-col items-center gap-2 p-4 rounded-xl bg-card border border-border hover:shadow-lg transition-shadow cursor-pointer"
               >
                 <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
                   <item.icon className="h-6 w-6 text-primary" />
                 </div>
                 <span className="text-sm font-medium text-foreground">{item.label}</span>
-              </div>
+              </motion.div>
             ))}
           </motion.div>
         </div>

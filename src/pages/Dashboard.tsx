@@ -21,6 +21,15 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import AppLayout from "@/components/layout/AppLayout";
 import { Link } from "react-router-dom";
 import NewAppointmentModal from "@/components/appointments/NewAppointmentModal";
+import { 
+  pageVariants, 
+  staggerContainerVariants, 
+  fadeUpVariants,
+  cardVariants,
+  statCardVariants,
+  springSubtle,
+  hoverLiftEffect,
+} from "@/lib/animations";
 
 const Dashboard = () => {
   const { t } = useTranslation();
@@ -128,29 +137,17 @@ const Dashboard = () => {
     );
   };
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 },
-    },
-  };
-
-  const itemVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 },
-  };
-
   return (
     <AppLayout>
       <motion.div
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
+        variants={pageVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
         className="space-y-6"
       >
         {/* Welcome header */}
-        <motion.div variants={itemVariants} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <motion.div variants={fadeUpVariants} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-foreground">
               {t("dashboard.welcome")}, {displayName} 👋
@@ -164,7 +161,10 @@ const Dashboard = () => {
               })}
             </p>
           </div>
-          <div className="flex gap-3">
+          <motion.div 
+            className="flex gap-3"
+            variants={fadeUpVariants}
+          >
             <Button variant="outline" asChild>
               <Link to="/patients/new">
                 <UserPlus className="h-4 w-4 mr-2" />
@@ -175,7 +175,7 @@ const Dashboard = () => {
               <Plus className="h-4 w-4 mr-2" />
               {t("dashboard.newAppointment")}
             </Button>
-          </div>
+          </motion.div>
         </motion.div>
 
         <NewAppointmentModal
@@ -184,50 +184,64 @@ const Dashboard = () => {
         />
 
         {/* Monthly stats */}
-        <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <motion.div 
+          variants={staggerContainerVariants}
+          initial="hidden"
+          animate="visible"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+        >
           {monthlyStats.map((stat, index) => (
-            <Card key={index} className="stat-card">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-1">{stat.title}</p>
-                    <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-                    <div className="flex items-center gap-1 mt-2">
-                      {stat.positive ? (
-                        <TrendingUp className="h-4 w-4 text-status-confirmed" />
-                      ) : (
-                        <TrendingDown className="h-4 w-4 text-destructive" />
-                      )}
-                      <span
-                        className={`text-sm font-medium ${
-                          stat.positive ? "text-status-confirmed" : "text-destructive"
-                        }`}
-                      >
-                        {stat.change > 0 ? "+" : ""}
-                        {stat.change}%
-                      </span>
-                      <span className="text-sm text-muted-foreground">vs mes anterior</span>
+            <motion.div
+              key={index}
+              variants={statCardVariants}
+              whileHover={hoverLiftEffect}
+            >
+              <Card className="stat-card">
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">{stat.title}</p>
+                      <p className="text-2xl font-bold text-foreground">{stat.value}</p>
+                      <div className="flex items-center gap-1 mt-2">
+                        {stat.positive ? (
+                          <TrendingUp className="h-4 w-4 text-status-confirmed" />
+                        ) : (
+                          <TrendingDown className="h-4 w-4 text-destructive" />
+                        )}
+                        <span
+                          className={`text-sm font-medium ${
+                            stat.positive ? "text-status-confirmed" : "text-destructive"
+                          }`}
+                        >
+                          {stat.change > 0 ? "+" : ""}
+                          {stat.change}%
+                        </span>
+                        <span className="text-sm text-muted-foreground">vs mes anterior</span>
+                      </div>
+                    </div>
+                    <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <stat.icon className="h-6 w-6 text-primary" />
                     </div>
                   </div>
-                  <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                    <stat.icon className="h-6 w-6 text-primary" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </motion.div>
           ))}
         </motion.div>
 
         {/* Today's summary and upcoming appointments */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Today's summary */}
-          <motion.div variants={itemVariants}>
+          <motion.div variants={cardVariants}>
             <Card className="h-full">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg">{t("dashboard.todaySummary")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex items-center justify-between p-4 rounded-xl bg-primary/5">
+                <motion.div 
+                  className="flex items-center justify-between p-4 rounded-xl bg-primary/5"
+                  whileHover={{ scale: 1.02, transition: springSubtle }}
+                >
                   <div>
                     <p className="text-3xl font-bold text-primary">
                       {todayStats.totalAppointments}
@@ -235,21 +249,27 @@ const Dashboard = () => {
                     <p className="text-sm text-muted-foreground">{t("dashboard.appointments")}</p>
                   </div>
                   <Calendar className="h-10 w-10 text-primary/40" />
-                </div>
+                </motion.div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <div className="p-3 rounded-lg bg-muted/50 text-center">
+                  <motion.div 
+                    className="p-3 rounded-lg bg-muted/50 text-center"
+                    whileHover={{ y: -2, transition: springSubtle }}
+                  >
                     <p className="text-xl font-bold text-status-confirmed">
                       {todayStats.completed}
                     </p>
                     <p className="text-xs text-muted-foreground">{t("dashboard.completed")}</p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-muted/50 text-center">
+                  </motion.div>
+                  <motion.div 
+                    className="p-3 rounded-lg bg-muted/50 text-center"
+                    whileHover={{ y: -2, transition: springSubtle }}
+                  >
                     <p className="text-xl font-bold text-status-scheduled">
                       {todayStats.pending}
                     </p>
                     <p className="text-xs text-muted-foreground">{t("dashboard.pending")}</p>
-                  </div>
+                  </motion.div>
                 </div>
 
                 <div className="p-4 rounded-xl bg-secondary">
@@ -272,7 +292,7 @@ const Dashboard = () => {
           </motion.div>
 
           {/* Upcoming appointments */}
-          <motion.div variants={itemVariants} className="lg:col-span-2">
+          <motion.div variants={cardVariants} className="lg:col-span-2">
             <Card className="h-full">
               <CardHeader className="pb-3 flex flex-row items-center justify-between">
                 <CardTitle className="text-lg">{t("dashboard.upcomingAppointments")}</CardTitle>
@@ -284,10 +304,17 @@ const Dashboard = () => {
                 </Button>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {upcomingAppointments.map((appointment) => (
-                    <div
+                <motion.div 
+                  className="space-y-3"
+                  variants={staggerContainerVariants}
+                  initial="hidden"
+                  animate="visible"
+                >
+                  {upcomingAppointments.map((appointment, index) => (
+                    <motion.div
                       key={appointment.id}
+                      variants={fadeUpVariants}
+                      whileHover={{ x: 4, transition: springSubtle }}
                       className="flex items-center justify-between p-4 rounded-xl border border-border hover:bg-muted/50 transition-colors"
                     >
                       <div className="flex items-center gap-4">
@@ -315,16 +342,16 @@ const Dashboard = () => {
                           <Phone className="h-4 w-4" />
                         </Button>
                       </div>
-                    </div>
+                    </motion.div>
                   ))}
-                </div>
+                </motion.div>
               </CardContent>
             </Card>
           </motion.div>
         </div>
 
         {/* Recent patients */}
-        <motion.div variants={itemVariants}>
+        <motion.div variants={cardVariants}>
           <Card>
             <CardHeader className="pb-3 flex flex-row items-center justify-between">
               <CardTitle className="text-lg">{t("dashboard.recentPatients")}</CardTitle>
@@ -336,28 +363,38 @@ const Dashboard = () => {
               </Button>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {recentPatients.map((patient) => (
-                  <Link
+              <motion.div 
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+                variants={staggerContainerVariants}
+                initial="hidden"
+                animate="visible"
+              >
+                {recentPatients.map((patient, index) => (
+                  <motion.div
                     key={patient.id}
-                    to={`/patients/${patient.id}`}
-                    className="flex items-center gap-3 p-4 rounded-xl border border-border hover:bg-muted/50 hover:border-primary/30 transition-all"
+                    variants={fadeUpVariants}
+                    whileHover={hoverLiftEffect}
                   >
-                    <Avatar>
-                      <AvatarFallback className="bg-secondary text-secondary-foreground">
-                        {patient.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-medium text-foreground">{patient.name}</p>
-                      <p className="text-sm text-muted-foreground">{patient.date}</p>
-                    </div>
-                  </Link>
+                    <Link
+                      to={`/patients/${patient.id}`}
+                      className="flex items-center gap-3 p-4 rounded-xl border border-border hover:bg-muted/50 hover:border-primary/30 transition-all block"
+                    >
+                      <Avatar>
+                        <AvatarFallback className="bg-secondary text-secondary-foreground">
+                          {patient.name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium text-foreground">{patient.name}</p>
+                        <p className="text-sm text-muted-foreground">{patient.date}</p>
+                      </div>
+                    </Link>
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
             </CardContent>
           </Card>
         </motion.div>

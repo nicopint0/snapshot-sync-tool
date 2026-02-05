@@ -51,6 +51,13 @@ import WhatsAppButton from "@/components/common/WhatsAppButton";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { 
+  pageVariants, 
+  fadeUpVariants,
+  cardVariants,
+  tableRowVariants,
+  springSubtle,
+} from "@/lib/animations";
 
 interface Budget {
   id: string;
@@ -245,12 +252,14 @@ ${budget.valid_until ? `⏳ Válido hasta: ${new Date(budget.valid_until).toLoca
   return (
     <AppLayout>
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+        variants={pageVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
         className="space-y-6"
       >
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <motion.div variants={fadeUpVariants} className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground">{t("budgets.title")}</h1>
             <p className="text-muted-foreground">Gestión de presupuestos de tratamientos</p>
@@ -259,7 +268,7 @@ ${budget.valid_until ? `⏳ Válido hasta: ${new Date(budget.valid_until).toLoca
             <Plus className="h-4 w-4 mr-2" />
             Nuevo Presupuesto
           </Button>
-        </div>
+        </motion.div>
 
         <NewBudgetDialog
           open={showNewBudget}
@@ -267,57 +276,65 @@ ${budget.valid_until ? `⏳ Válido hasta: ${new Date(budget.valid_until).toLoca
         />
 
         {/* Filters */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por paciente..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
+        <motion.div variants={cardVariants}>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por paciente..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-48">
+                    <Filter className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Estado" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statuses.map((status) => (
+                      <SelectItem key={status.value} value={status.value}>
+                        {status.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-48">
-                  <Filter className="h-4 w-4 mr-2" />
-                  <SelectValue placeholder="Estado" />
-                </SelectTrigger>
-                <SelectContent>
-                  {statuses.map((status) => (
-                    <SelectItem key={status.value} value={status.value}>
-                      {status.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </motion.div>
 
         {/* Budgets Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              {filteredBudgets.length} Presupuestos
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : filteredBudgets.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">No se encontraron presupuestos</p>
-                <Button className="mt-4" onClick={() => setShowNewBudget(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Crear primer presupuesto
-                </Button>
-              </div>
-            ) : (
+        <motion.div variants={cardVariants}>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                {filteredBudgets.length} Presupuestos
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : filteredBudgets.length === 0 ? (
+                <motion.div 
+                  className="text-center py-8"
+                  variants={fadeUpVariants}
+                  initial="hidden"
+                  animate="visible"
+                >
+                  <p className="text-muted-foreground">No se encontraron presupuestos</p>
+                  <Button className="mt-4" onClick={() => setShowNewBudget(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Crear primer presupuesto
+                  </Button>
+                </motion.div>
+              ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -331,8 +348,15 @@ ${budget.valid_until ? `⏳ Válido hasta: ${new Date(budget.valid_until).toLoca
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredBudgets.map((budget) => (
-                    <TableRow key={budget.id}>
+                  {filteredBudgets.map((budget, index) => (
+                    <motion.tr
+                      key={budget.id}
+                      variants={tableRowVariants}
+                      initial="hidden"
+                      animate="visible"
+                      transition={{ delay: index * 0.03 }}
+                      whileHover={{ backgroundColor: "hsl(var(--muted) / 0.5)", transition: springSubtle }}
+                    >
                       <TableCell className="font-mono">
                         #{budget.id.slice(0, 8).toUpperCase()}
                       </TableCell>
@@ -431,13 +455,14 @@ ${budget.valid_until ? `⏳ Válido hasta: ${new Date(budget.valid_until).toLoca
                           </DropdownMenu>
                         </div>
                       </TableCell>
-                    </TableRow>
+                    </motion.tr>
                   ))}
                 </TableBody>
               </Table>
             )}
           </CardContent>
         </Card>
+        </motion.div>
       </motion.div>
 
       {/* Budget Detail Dialog */}

@@ -15,11 +15,32 @@ import {
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { springSubtle, springResponsive } from "@/lib/animations";
 
 interface SidebarProps {
   isOpen: boolean;
   onClose: () => void;
 }
+
+const sidebarItemVariants = {
+  hidden: { opacity: 0, x: -16 },
+  visible: { 
+    opacity: 1, 
+    x: 0,
+    transition: springSubtle,
+  },
+};
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.04,
+      delayChildren: 0.1,
+    },
+  },
+};
 
 const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
   const { t } = useTranslation();
@@ -39,20 +60,26 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
 
   const isActive = (path: string) => location.pathname === path;
 
-  const NavItem = ({ item }: { item: typeof navigationItems[0] }) => (
-    <Link
-      to={item.path}
-      onClick={onClose}
-      className={cn(
-        "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200",
-        isActive(item.path)
-          ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-lg"
-          : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-      )}
+  const NavItem = ({ item, index }: { item: typeof navigationItems[0]; index: number }) => (
+    <motion.div
+      variants={sidebarItemVariants}
+      whileHover={{ x: 4, transition: springResponsive }}
+      whileTap={{ scale: 0.98 }}
     >
-      <item.icon className="h-5 w-5 flex-shrink-0" />
-      <span className="font-medium">{item.label}</span>
-    </Link>
+      <Link
+        to={item.path}
+        onClick={onClose}
+        className={cn(
+          "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200",
+          isActive(item.path)
+            ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-lg"
+            : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+        )}
+      >
+        <item.icon className="h-5 w-5 flex-shrink-0" />
+        <span className="font-medium">{item.label}</span>
+      </Link>
+    </motion.div>
   );
 
   const SidebarContent = () => (
@@ -77,20 +104,27 @@ const Sidebar = ({ isOpen, onClose }: SidebarProps) => {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {navigationItems.map((item) => (
-          <NavItem key={item.path} item={item} />
+      <motion.nav 
+        className="flex-1 p-4 space-y-1 overflow-y-auto"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        {navigationItems.map((item, index) => (
+          <NavItem key={item.path} item={item} index={index} />
         ))}
-      </nav>
+      </motion.nav>
 
       {/* Bottom section */}
       <div className="p-4 border-t border-sidebar-border/30">
-        <button
+        <motion.button
+          whileHover={{ x: 4, transition: springResponsive }}
+          whileTap={{ scale: 0.98 }}
           className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200"
         >
           <LogOut className="h-5 w-5" />
           <span className="font-medium">{t("auth.logout")}</span>
-        </button>
+        </motion.button>
       </div>
     </div>
   );

@@ -26,6 +26,14 @@ import NewTreatmentDialog from "@/components/treatments/NewTreatmentDialog";
 import EditTreatmentDialog from "@/components/treatments/EditTreatmentDialog";
 import DeleteTreatmentDialog from "@/components/treatments/DeleteTreatmentDialog";
 import { supabase } from "@/integrations/supabase/client";
+import { 
+  pageVariants, 
+  fadeUpVariants,
+  cardVariants,
+  tableRowVariants,
+  springSubtle,
+  hoverLiftEffect,
+} from "@/lib/animations";
 
 interface Treatment {
   id: string;
@@ -79,12 +87,14 @@ const Treatments = () => {
   return (
     <AppLayout>
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+        variants={pageVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
         className="space-y-6"
       >
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <motion.div variants={fadeUpVariants} className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground">{t("treatments.title")}</h1>
             <p className="text-muted-foreground">Catálogo de tratamientos de la clínica</p>
@@ -93,7 +103,7 @@ const Treatments = () => {
             <Plus className="h-4 w-4 mr-2" />
             Nuevo Tratamiento
           </Button>
-        </div>
+        </motion.div>
 
         <NewTreatmentDialog
           open={showNewTreatment}
@@ -124,124 +134,141 @@ const Treatments = () => {
           }}
           treatment={deletingTreatment}
         />
+        
         {/* Filters */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar tratamientos..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                />
+        <motion.div variants={cardVariants}>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar tratamientos..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                  <SelectTrigger className="w-48">
+                    <Filter className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Categoría" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas las categorías</SelectItem>
+                    {categories.map((cat) => (
+                      <SelectItem key={cat} value={cat!}>
+                        {cat}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                <SelectTrigger className="w-48">
-                  <Filter className="h-4 w-4 mr-2" />
-                  <SelectValue placeholder="Categoría" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas las categorías</SelectItem>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat} value={cat!}>
-                      {cat}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </motion.div>
 
         {/* Treatments Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">
-              {filteredTreatments.length} Tratamientos
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : filteredTreatments.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">No se encontraron tratamientos</p>
-                <Button className="mt-4" onClick={() => setShowNewTreatment(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Crear primer tratamiento
-                </Button>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nombre</TableHead>
-                    <TableHead>Categoría</TableHead>
-                    <TableHead>Duración</TableHead>
-                    <TableHead>Precio</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead className="text-right">Acciones</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredTreatments.map((treatment) => (
-                    <TableRow key={treatment.id}>
-                      <TableCell>
-                        <div>
-                          <p className="font-medium">{treatment.name}</p>
-                          {treatment.description && (
-                            <p className="text-sm text-muted-foreground line-clamp-1">
-                              {treatment.description}
-                            </p>
-                          )}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {treatment.category && (
-                          <Badge variant="secondary">{treatment.category}</Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {treatment.duration_minutes} min
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        ${treatment.price.toLocaleString()}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={treatment.is_active ? "default" : "secondary"}>
-                          {treatment.is_active ? "Activo" : "Inactivo"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setEditingTreatment(treatment)}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive"
-                            onClick={() => setDeletingTreatment(treatment)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
+        <motion.div variants={cardVariants}>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">
+                {filteredTreatments.length} Tratamientos
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : filteredTreatments.length === 0 ? (
+                <motion.div 
+                  className="text-center py-8"
+                  variants={fadeUpVariants}
+                  initial="hidden"
+                  animate="visible"
+                >
+                  <p className="text-muted-foreground">No se encontraron tratamientos</p>
+                  <Button className="mt-4" onClick={() => setShowNewTreatment(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Crear primer tratamiento
+                  </Button>
+                </motion.div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nombre</TableHead>
+                      <TableHead>Categoría</TableHead>
+                      <TableHead>Duración</TableHead>
+                      <TableHead>Precio</TableHead>
+                      <TableHead>Estado</TableHead>
+                      <TableHead className="text-right">Acciones</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredTreatments.map((treatment, index) => (
+                      <motion.tr
+                        key={treatment.id}
+                        variants={tableRowVariants}
+                        initial="hidden"
+                        animate="visible"
+                        transition={{ delay: index * 0.03 }}
+                        whileHover={{ backgroundColor: "hsl(var(--muted) / 0.5)", transition: springSubtle }}
+                      >
+                        <TableCell>
+                          <div>
+                            <p className="font-medium">{treatment.name}</p>
+                            {treatment.description && (
+                              <p className="text-sm text-muted-foreground line-clamp-1">
+                                {treatment.description}
+                              </p>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {treatment.category && (
+                            <Badge variant="secondary">{treatment.category}</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {treatment.duration_minutes} min
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          ${treatment.price.toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={treatment.is_active ? "default" : "secondary"}>
+                            {treatment.is_active ? "Activo" : "Inactivo"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setEditingTreatment(treatment)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive"
+                              onClick={() => setDeletingTreatment(treatment)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </motion.tr>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
       </motion.div>
     </AppLayout>
   );

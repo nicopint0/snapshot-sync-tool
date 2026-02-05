@@ -18,6 +18,16 @@ import AppLayout from "@/components/layout/AppLayout";
 import RegisterPaymentDialog from "@/components/payments/RegisterPaymentDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { 
+  pageVariants, 
+  fadeUpVariants,
+  cardVariants,
+  statCardVariants,
+  tableRowVariants,
+  staggerContainerVariants,
+  springSubtle,
+  hoverLiftEffect,
+} from "@/lib/animations";
 
 interface Payment {
   id: string;
@@ -123,12 +133,14 @@ const Payments = () => {
   return (
     <AppLayout>
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+        variants={pageVariants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
         className="space-y-6"
       >
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <motion.div variants={fadeUpVariants} className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-foreground">
               {t("payments.title")}
@@ -136,159 +148,188 @@ const Payments = () => {
             <p className="text-muted-foreground">Registro de pagos recibidos</p>
           </div>
           <RegisterPaymentDialog />
-        </div>
+        </motion.div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total del Mes</p>
-                  <p className="text-2xl font-bold">
-                    ${totalMonth.toLocaleString()}
-                  </p>
+        <motion.div 
+          variants={staggerContainerVariants}
+          initial="hidden"
+          animate="visible"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+        >
+          <motion.div variants={statCardVariants} whileHover={hoverLiftEffect}>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total del Mes</p>
+                    <p className="text-2xl font-bold">
+                      ${totalMonth.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+                    <DollarSign className="h-6 w-6 text-primary" />
+                  </div>
                 </div>
-                <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
-                  <DollarSign className="h-6 w-6 text-primary" />
+              </CardContent>
+            </Card>
+          </motion.div>
+          <motion.div variants={statCardVariants} whileHover={hoverLiftEffect}>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Efectivo</p>
+                    <p className="text-2xl font-bold">
+                      ${paymentsByMethod.cash.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
+                    <Banknote className="h-6 w-6 text-green-600 dark:text-green-400" />
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Efectivo</p>
-                  <p className="text-2xl font-bold">
-                    ${paymentsByMethod.cash.toLocaleString()}
-                  </p>
+              </CardContent>
+            </Card>
+          </motion.div>
+          <motion.div variants={statCardVariants} whileHover={hoverLiftEffect}>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Tarjeta</p>
+                    <p className="text-2xl font-bold">
+                      ${paymentsByMethod.card.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
+                    <CreditCard className="h-6 w-6 text-blue-600 dark:text-blue-400" />
+                  </div>
                 </div>
-                <div className="h-12 w-12 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
-                  <Banknote className="h-6 w-6 text-green-600 dark:text-green-400" />
+              </CardContent>
+            </Card>
+          </motion.div>
+          <motion.div variants={statCardVariants} whileHover={hoverLiftEffect}>
+            <Card>
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Transferencia</p>
+                    <p className="text-2xl font-bold">
+                      ${paymentsByMethod.transfer.toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="h-12 w-12 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
+                    <Wallet className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Tarjeta</p>
-                  <p className="text-2xl font-bold">
-                    ${paymentsByMethod.card.toLocaleString()}
-                  </p>
-                </div>
-                <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center">
-                  <CreditCard className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Transferencia</p>
-                  <p className="text-2xl font-bold">
-                    ${paymentsByMethod.transfer.toLocaleString()}
-                  </p>
-                </div>
-                <div className="h-12 w-12 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center">
-                  <Wallet className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </motion.div>
 
         {/* Search */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Buscar por paciente..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-          </CardContent>
-        </Card>
+        <motion.div variants={cardVariants}>
+          <Card>
+            <CardContent className="pt-6">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar por paciente..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
 
         {/* Payments Table */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Historial de Pagos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : filteredPayments.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">No se encontraron pagos</p>
-                <div className="mt-4">
-                  <RegisterPaymentDialog />
+        <motion.div variants={cardVariants}>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Historial de Pagos</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Fecha</TableHead>
-                    <TableHead>Paciente</TableHead>
-                    <TableHead>Presupuesto</TableHead>
-                    <TableHead>Monto</TableHead>
-                    <TableHead>Método</TableHead>
-                    <TableHead>Notas</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredPayments.map((payment) => (
-                    <TableRow key={payment.id}>
-                      <TableCell>
-                        {new Date(
-                          payment.payment_date || payment.created_at
-                        ).toLocaleDateString("es-ES", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {payment.patients?.first_name} {payment.patients?.last_name}
-                      </TableCell>
-                      <TableCell>
-                        {payment.budget_id ? (
-                          <span className="font-mono text-sm">
-                            #{payment.budget_id.slice(0, 8).toUpperCase()}
-                          </span>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="font-bold text-green-600 dark:text-green-400">
-                        +${payment.amount.toLocaleString()}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className="gap-1">
-                          {getMethodIcon(payment.payment_method)}
-                          {getMethodLabel(payment.payment_method)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground max-w-[200px] truncate">
-                        {payment.notes || "-"}
-                      </TableCell>
+              ) : filteredPayments.length === 0 ? (
+                <motion.div 
+                  className="text-center py-8"
+                  variants={fadeUpVariants}
+                  initial="hidden"
+                  animate="visible"
+                >
+                  <p className="text-muted-foreground">No se encontraron pagos</p>
+                  <div className="mt-4">
+                    <RegisterPaymentDialog />
+                  </div>
+                </motion.div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Fecha</TableHead>
+                      <TableHead>Paciente</TableHead>
+                      <TableHead>Presupuesto</TableHead>
+                      <TableHead>Monto</TableHead>
+                      <TableHead>Método</TableHead>
+                      <TableHead>Notas</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredPayments.map((payment, index) => (
+                      <motion.tr
+                        key={payment.id}
+                        variants={tableRowVariants}
+                        initial="hidden"
+                        animate="visible"
+                        transition={{ delay: index * 0.03 }}
+                        whileHover={{ backgroundColor: "hsl(var(--muted) / 0.5)", transition: springSubtle }}
+                      >
+                        <TableCell>
+                          {new Date(
+                            payment.payment_date || payment.created_at
+                          ).toLocaleDateString("es-ES", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {payment.patients?.first_name} {payment.patients?.last_name}
+                        </TableCell>
+                        <TableCell>
+                          {payment.budget_id ? (
+                            <span className="font-mono text-sm">
+                              #{payment.budget_id.slice(0, 8).toUpperCase()}
+                            </span>
+                          ) : (
+                            <span className="text-sm text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="font-bold text-green-600 dark:text-green-400">
+                          +${payment.amount.toLocaleString()}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary" className="gap-1">
+                            {getMethodIcon(payment.payment_method)}
+                            {getMethodLabel(payment.payment_method)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground max-w-[200px] truncate">
+                          {payment.notes || "-"}
+                        </TableCell>
+                      </motion.tr>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
       </motion.div>
     </AppLayout>
   );
